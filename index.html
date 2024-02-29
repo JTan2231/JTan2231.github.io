@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" href="./common.css">
+
+    <title>Joey Tan</title>
+</head>
+
+<style>
+    body {
+        font-family: monospace;
+    }
+</style>
+
+<body>
+    <div class="content">
+        <h1>Joey Tan</h1>
+        <p>
+            I'm Joey, a <a class="citation" href="https://github.com/JTan2231">software developer</a> interested in <a
+                class="citation" href="https://github.com/JTan2231/hive">AI</a> and user/developer
+            experience.
+        </p>
+
+        <p>
+            You can find me on
+        <ul>
+            <li><a class="citation" href="https://www.are.na/joey-tan/">Are.na</a>
+            <li><a class="citation" href="https://github.com/JTan2231">GitHub</a>
+            <li><a class="citation" href="https://twitter.com/joeymtan">Twitter</a>
+            <li><a class="citation" href="https://www.linkedin.com/in/joseph-tan-478aa5186/">LinkedIn</a>
+        </ul>
+        </p>
+
+        <h1>Writing</h1>
+        <div>A loose collection of thoughts of varying refinement intended as a scratch pad for the ideas that form my
+            worldview.</div>
+        <ul>
+            <li><a href="./trust.html">Trust</a>
+        </ul>
+
+        <h1>Changelog</h1>
+        <ul id="commits-list"></ul>
+    </div>
+
+    <script src="./util.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            fetch('https://api.github.com/repos/JTan2231/JTan2231.github.io/commits')
+                .then(response => response.json())
+                .then(data => {
+                    const commitsContainer = document.getElementById('commits-list');
+                    data.forEach(commit => {
+                        const commitTime = new Date(commit.commit.committer.date).toLocaleString();
+                        const commitMessage = commit.commit.message;
+                        const commitElement = document.createElement('li');
+                        commitElement.innerHTML = `${commitTime} - ${commitMessage}`;
+                        commitsContainer.appendChild(commitElement);
+                    });
+                })
+                .catch(error => console.error('Error fetching commit data:', error));
+        });
+    </script>
+</body>
+
+</html>
