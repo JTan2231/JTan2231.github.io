@@ -30,7 +30,6 @@
         <ul>
             <li><a class="citation" href="https://www.are.na/joey-tan/">Are.na</a>
             <li><a class="citation" href="https://github.com/JTan2231">GitHub</a>
-            <li><a class="citation" href="https://twitter.com/joeymtan">Twitter</a>
             <li><a class="citation" href="https://www.linkedin.com/in/joseph-tan-478aa5186/">LinkedIn</a>
         </ul>
         </p>
@@ -42,23 +41,71 @@
             <li><a href="./trust.html">Trust</a>
         </ul>
 
-        <h1>Changelog</h1>
-        <ul id="commits-list"></ul>
+        <h1>Worklog</h1>
+        <table id="commits-list"
+            style="width: 100%; table-layout: fixed; border: 1px solid black; border-collapse: collapse;">
+            <tr>
+                <td><b>Repository</b></td>
+                <td><b>Commit Date</b></td>
+                <td><b>Commit Time</b></td>
+            </tr>
+        </table>
     </div>
 
     <script src="./util.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            fetch('https://api.github.com/repos/JTan2231/JTan2231.github.io/commits')
+            const author = 'JTan2231';
+
+            const endDate = new Date();
+            const startDate = new Date();
+
+            console.log(endDate);
+
+            startDate.setDate(endDate.getDate() - 30);
+
+            const format = date => date.toISOString().split('T')[0];
+            const getDate = commit => new Date(commit.commit.committer.date);
+
+            const createColumn = (content, url) => {
+                const column = document.createElement('td');
+                column.style.margin = '1rem';
+
+                if (url.length > 0) {
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.innerHTML = content;
+
+                    column.appendChild(link);
+                }
+                else {
+                    column.innerHTML = content;
+                }
+
+                return column;
+            };
+
+            const fetchUrl = `https://api.github.com/search/commits?q=author:${author}+committer-date:${format(startDate)}..${format(endDate)}`;
+
+            fetch(fetchUrl, {
+                headers: {'Accept': 'application/vnd.github.cloak-preview+json'}
+            })
                 .then(response => response.json())
                 .then(data => {
                     const commitsContainer = document.getElementById('commits-list');
-                    data.forEach(commit => {
-                        const commitTime = new Date(commit.commit.committer.date).toLocaleString();
-                        const commitMessage = commit.commit.message;
-                        const commitElement = document.createElement('li');
-                        commitElement.innerHTML = `${commitTime} - ${commitMessage}`;
-                        commitsContainer.appendChild(commitElement);
+                    const sorted = data.items.sort((a, b) => getDate(b) - getDate(a));
+                    sorted.forEach(commit => {
+                        const commitTime = getDate(commit).toLocaleString().split(',')[0];
+
+                        const commitRow = document.createElement('tr');
+
+                        commitRow.style.border = '1px solid black';
+
+                        commitRow.appendChild(createColumn(commit.repository.name, commit.repository.html_url));
+                        commitRow.appendChild(createColumn(commitTime, ''));
+                        commitRow.appendChild(createColumn(commit.commit.message, commit.html_url));
+
+                        document.getElementById('commits-list').appendChild(commitRow);
                     });
                 })
                 .catch(error => console.error('Error fetching commit data:', error));
