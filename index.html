@@ -70,6 +70,7 @@
             const createColumn = (content, url) => {
                 const column = document.createElement('td');
                 column.style.margin = '1rem';
+                column.style.overflow = 'hidden';
 
                 if (url.length > 0) {
                     const link = document.createElement('a');
