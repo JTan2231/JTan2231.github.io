@@ -25,7 +25,7 @@
     }
 
     .inputContainer {
-        position: fixed;
+        position: absolute;
         left: 50%;
         top: 35%;
         transform: translateX(-50%);
@@ -126,6 +126,15 @@
         left: 50%;
         top: 40%;
         transform: translateX(-50%);
+        width: 30vw;
+        display: flex;
+        flex-direction: column;
+    }
+
+    @media (max-width: 768px) {
+        .aboutContainer {
+            width: 100%;
+        }
     }
 </style>
 
@@ -141,13 +150,26 @@
             <div class="emailInputContainer">
                 <input id="emailInput" class="emailInput" type="text" placeholder="your.email@provider.com" />
             </div>
-            <button class="submit" onclick="signup()">Submit</button>
+            <button class="submit" onclick="signup()">Sign Up</button>
         </div>
         <div id="responseMessage" class="responseMessage">You're not supposed to see this</div>
     </div>
     <div class="aboutContainer">
-        <h1>What is this?</h1>
-        <p style="width: min(15vw, 600px)">Todo: update the width on this, please</p>
+        <h1 style="width: fit-content; align-self: center;">What is this?</h1>
+        <p>Ritual is an activity tracking app with an AI-led interface; this here is a weekly newsletter over the
+            activities you've logged to Ritual.</p>
+        <p>I think much of our lives are governed by our routines. When I was younger, I balked at this idea; why would
+            I waste my precious time mastering the mundane when I could just <i>do it</i>? But it quickly became clear
+            to me that the boring bits were the foundation of the complex majesty for which many of us strive. In
+            searching for progress, I found joy in the routine of walking to grab my morning coffee, as every step in
+            the early sunlight became a metaphor for the similarly enjoyable progress I'd patiently find elsewhere.</p>
+        <p>To better understand myself and what led to different routines, I decided to start journaling/notetaking. But
+            this felt inefficient--I didn't want to pore over the disjointed, unorganized data I logged; that's a
+            computer's job. Also, it felt strangely corporate to so diligently fill out a form of how I spent my life
+            each day. Why can't I just say what I did, as I would to a friend? Well with GPT, I can. So I built Ritual.
+        </p>
+        <p>If you're interested, enter your email address above and you'll receive an onboarding email explaining how to
+            get started.</p>
     </div>
 </body>
 
@@ -220,7 +242,7 @@
 
         reset();
 
-        fetch('todo', {
+        fetch('https://ritual-api-production.up.railway.app/newsletter-signup', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
