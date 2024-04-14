@@ -133,7 +133,8 @@
 
     @media (max-width: 768px) {
         .aboutContainer {
-            width: 100%;
+            padding: 20px;
+            width: calc(100% - 40px);
         }
     }
 </style>
@@ -150,14 +151,14 @@
             <div class="emailInputContainer">
                 <input id="emailInput" class="emailInput" type="text" placeholder="your.email@provider.com" />
             </div>
-            <button class="submit" onclick="signup()">Sign Up</button>
+            <button class="submit" onclick="signup()">Submit</button>
         </div>
         <div id="responseMessage" class="responseMessage">You're not supposed to see this</div>
     </div>
     <div class="aboutContainer">
         <h1 style="width: fit-content; align-self: center;">What is this?</h1>
-        <p>Ritual is an activity tracking app with an AI-led interface; this here is a weekly newsletter over the
-            activities you've logged to Ritual.</p>
+        <p>Ritual is an activity tracking app with a focus on long-term growth and flexible goal-orientation, summarized
+            with weekly newsletters over your activities and goals.</p>
         <p>I think much of our lives are governed by our routines. When I was younger, I balked at this idea; why would
             I waste my precious time mastering the mundane when I could just <i>do it</i>? But it quickly became clear
             to me that the boring bits were the foundation of the complex majesty for which many of us strive. In
