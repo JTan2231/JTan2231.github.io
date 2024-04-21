@@ -134,20 +134,18 @@
 
     function updateSettings() {
         const newSettings = {
-            receivingNewsletters: element('receivingNewsletters').value,
-            receivingNewsletters: element('receivingLogs').value,
-            receivingNewsletters: element('deleteUser').value,
+            receiving_newsletters: element('receivingNewsletters').value,
+            receiving_logs: element('receivingLogs').value,
+            delete_user: element('deleteUser').value,
         };
 
         fetch('https://ritual-api-production.up.railway.app/update-settings', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({
-                token: token,
-                new_settings: newSettings
-            })
+            body: JSON.stringify(newSettings)
         }).then(res => {
             if (res.ok) {
                 display(['success']);
