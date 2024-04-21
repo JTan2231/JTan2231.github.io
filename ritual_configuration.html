@@ -139,7 +139,7 @@
             delete_user: element('deleteUser').checked,
         };
 
-        fetch('http://localhost:5000/update-settings', {
+        fetch('https://ritual-api-production.up.railway.app/update-settings', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
