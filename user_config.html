@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ritual Configuration</title>
+</head>
+
+<style>
+    label {
+        font-family: monospace;
+        vertical-align: middle;
+        user-select: none;
+        border-bottom: 1px solid #dfdfdf;
+        padding: 0.5rem 0;
+    }
+
+    .top {
+        border-top: 1px solid #dfdfdf;
+    }
+
+    input {
+        margin: 0;
+        vertical-align: middle;
+    }
+
+    .titleContainer {
+        position: absolute;
+        left: 50%;
+        top: 5%;
+        font-size: 14px;
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        font-family: monospace;
+        user-select: none;
+    }
+
+    .settingsContainer {
+        position: absolute;
+        left: 50%;
+        top: 40%;
+        transform: translateX(-50%);
+        width: 20vw;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .submit {
+        font-family: monospace;
+        background-color: white;
+        border: 0;
+        cursor: pointer;
+        width: fit-content;
+        margin-top: 1rem;
+        user-select: none;
+        align-self: center;
+        transition: all 0.5s;
+    }
+
+    .submit:hover {
+        background-color: #dfdfdf;
+    }
+
+    .submit:active {
+        transition: all 0s;
+        background-color: #afafaf;
+    }
+
+    .response {
+        font-family: monospace;
+        position: fixed;
+        user-select: none;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+    }
+</style>
+
+<body>
+    <div id="title" class="titleContainer">
+        <h1>Ritual Configuration</h1>
+    </div>
+    <div id="settings" class="settingsContainer">
+        <label class="top">
+            <input id="receivingNewsletters" type="checkbox" /> I want to be receiving newsletters every Sunday
+        </label>
+        <label>
+            <input id="receivingLogs" type="checkbox" /> I want to be receiving activity logs after I log activities
+        </label>
+        <label style="color: red;">
+            <input id="deleteUser" type="checkbox" /> I want to remove my account and delete my data
+        </label>
+        <button class="submit" onclick="updateSettings()">Update Settings</button>
+    </div>
+    <div id="invalidToken" class="response">
+        Error: missing token
+    </div>
+    <div id="success" class="response">
+        Settings updated successfully
+    </div>
+    <div id="error" class="response">
+        There was an error updating your settings
+    </div>
+</body>
+
+<script>
+    function element(name) {
+        return document.getElementById(name);
+    }
+
+    const names = ['settings', 'title', 'invalidToken', 'success', 'error'];
+
+    // hides everything else
+    function display(targets) {
+        for (const n of names) {
+            if (targets.includes(n)) {
+                element(n).style.display = null;
+            } else {
+                element(n).style.display = 'none';
+            }
+        }
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    if (token === null) {
+        display(['invalidToken']);
+    } else {
+        display(['title', 'settings']);
+    }
+
+    function updateSettings() {
+        const newSettings = {
+            receivingNewsletters: element('receivingNewsletters').value,
+            receivingNewsletters: element('receivingLogs').value,
+            receivingNewsletters: element('deleteUser').value,
+        };
+
+        fetch('https://ritual-api-production.up.railway.app/update-settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                token: token,
+                new_settings: newSettings
+            })
+        }).then(res => {
+            if (res.ok) {
+                display(['success']);
+            } else {
+                display(['error']);
+            }
+        })
+    }
+</script>
+
+</html>
