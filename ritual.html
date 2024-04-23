@@ -166,8 +166,8 @@
             with Sunday newsletters at 9AM CST.</p>
         <p>I think much of our lives are governed by our routines. When I was younger, I balked at this idea; why would
             I waste my precious time mastering the mundane when I could just <i>do it</i>? Well it turns out I can't,
-            and it quickly became clear to me that the boring bits were the foundation of the complex
-            achievements for which we strive. In searching for progress, I found peace in the mundanity of a morning
+            and it quickly became clear to me that the boring bits were the foundation of any sort of lasting
+            achievement. In searching for progress, I found peace in the mundanity of a morning
             walk and coffee; every step in the early sunlight became an analog to the similarly enjoyable progress I'd
             patiently find
             elsewhere.</p>
@@ -261,13 +261,13 @@
         }).then(res => {
             if (res.status === 200) {
                 setSuccessColors();
-                response.innerHTML = 'Onboarding email sent to ' + input.value;
+                response.innerHTML = 'Onboarding email sent to ' + input.value + '--be sure to check spam';
             } else if (res.status === 409) {
                 setDuplicateColors();
                 response.innerHTML = 'This email is already registered';
             } else {
                 setErrorColors();
-                response.innerHTML = 'Something bad happened, let Joey know';
+                response.innerHTML = 'Something bad happened, email j.tan2231@gmail.com for help';
             }
 
             setTimeout(() => {
