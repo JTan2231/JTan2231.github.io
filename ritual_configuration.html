@@ -91,9 +91,15 @@
             <input id="receivingLogs" type="checkbox" /> I want to be receiving activity logs after I log activities
         </label>
         <label style="color: red;">
-            <input id="deleteUser" type="checkbox" /> I want to remove my account and delete my data
+            <input id="deleteUser" type="checkbox" onclick="deleteVerify()" /> I want to remove my account and delete my
+            data
         </label>
-        <button class="submit" onclick="updateSettings()">Update Settings</button>
+        <label id="deleteVerification" style="display: none;">
+            Type <b>delete my ritual account</b> to confirm your account deletion<br>
+            <input id="verificationInput" type="text" style="font-family: monospace;"
+                placeholder="delete my ritual account" onkeyup="disableSubmit()" />
+        </label>
+        <button id="submitButton" class="submit" onclick="updateSettings()">Update Settings</button>
     </div>
     <div id="invalidToken" class="response">
         Error: missing token
@@ -107,8 +113,22 @@
 </body>
 
 <script>
+    const deleteString = 'delete my ritual account';
+
     function element(name) {
         return document.getElementById(name);
+    }
+
+    function disableSubmit() {
+        const isDisabled = element('deleteUser').checked && !(element('verificationInput').value === deleteString);
+        const button = element('submitButton');
+        if (isDisabled) {
+            button.disabled = true;
+            button.style.pointerEvents = 'none';
+        } else {
+            button.disabled = false;
+            button.style.pointerEvents = null;
+        }
     }
 
     const names = ['settings', 'title', 'invalidToken', 'success', 'error'];
@@ -132,11 +152,16 @@
         display(['title', 'settings']);
     }
 
+    function deleteVerify() {
+        disableSubmit();
+        element('deleteVerification').style.display = element('deleteUser').checked ? null : 'none';
+    }
+
     function updateSettings() {
         const newSettings = {
             receiving_newsletters: element('receivingNewsletters').checked,
             receiving_logs: element('receivingLogs').checked,
-            delete_user: element('deleteUser').checked,
+            delete_user: element('deleteUser').checked && element('verificationInput').value === deleteString,
         };
 
         fetch('https://ritual-api-production.up.railway.app/update-settings', {
