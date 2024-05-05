@@ -77,6 +77,13 @@
         top: 50%;
         transform: translate(-50%, -50%);
     }
+
+    @media (max-width: 768px) {
+        .settingsContainer {
+            padding: 20px;
+            width: calc(100% - 40px);
+        }
+    }
 </style>
 
 <body>
@@ -90,8 +97,13 @@
         <label>
             <input id="receivingLogs" type="checkbox" /> I want to be receiving activity logs after I log activities
         </label>
+        <label>
+            <input id="deletingData" type="checkbox" /> I want my Ritual entries to be deleted from the Ritual database
+            after my weekly newsletter is sent
+        </label>
         <label style="color: red;">
-            <input id="deleteUser" type="checkbox" onclick="deleteVerify()" /> I want to remove my account and delete my
+            <input id="deleteUser" type="checkbox" onclick="deleteVerify()" /> I want to remove my account and
+            delete my
             data
         </label>
         <label id="deleteVerification" style="display: none;">
@@ -161,6 +173,7 @@
         const newSettings = {
             receiving_newsletters: element('receivingNewsletters').checked,
             receiving_logs: element('receivingLogs').checked,
+            deleting_data: element('deletingData').checked,
             delete_user: element('deleteUser').checked && element('verificationInput').value === deleteString,
         };
 
