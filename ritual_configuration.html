@@ -16,6 +16,13 @@
         padding: 0.5rem 0;
     }
 
+    .secret {
+        font-family: monospace;
+        padding: 0.5rem 0;
+        vertical-align: middle;
+        user-select: none;
+    }
+
     .top {
         border-top: 1px solid #dfdfdf;
     }
@@ -54,7 +61,8 @@
         border: 0;
         cursor: pointer;
         width: fit-content;
-        margin-top: 1rem;
+        margin: 1rem;
+        padding: 0.25rem;
         user-select: none;
         align-self: center;
         transition: all 0.5s;
@@ -91,6 +99,11 @@
         <h1>Ritual Configuration</h1>
     </div>
     <div id="settings" class="settingsContainer">
+        <button id="secretButton" class="submit" onclick="getNewSecret()">Refresh CLI Secret Key</button>
+        <div id="secretMessage" class="secret" style="display: none;">Your new secret key is <span id="secretValue"
+                style="background-color: #dadada; padding: 0.15rem; user-select: text;">whatever</span>. <br>
+            This is unrecoverable after leaving this page.
+        </div>
         <label class="top">
             <input id="receivingNewsletters" type="checkbox" /> I want to be receiving newsletters every Sunday
         </label>
@@ -103,8 +116,7 @@
         </label>
         <label style="color: red;">
             <input id="deleteUser" type="checkbox" onclick="deleteVerify()" /> I want to remove my account and
-            delete my
-            data
+            delete my data
         </label>
         <label id="deleteVerification" style="display: none;">
             Type <b>delete my ritual account</b> to confirm your account deletion<br>
@@ -191,6 +203,23 @@
                 display(['error']);
             }
         })
+    }
+
+    function getNewSecret() {
+        fetch('http://localhost:5000/generate-cli-token', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        }).then(res => res.json()).then(res => {
+            element('secretMessage').style.display = null;
+            element('secretButton').style.display = 'none';
+            if (res.new_secret !== undefined) {
+                element('secretValue').innerHTML = res.new_secret;
+            } else {
+                element('secretMessage').innerHTML = 'There was an error generating your token.';
+            }
+        });
     }
 </script>
 
