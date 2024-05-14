@@ -206,7 +206,7 @@
     }
 
     function getNewSecret() {
-        fetch('http://localhost:5000/generate-cli-token', {
+        fetch('https://ritual-api-production.up.railway.app/generate-cli-token', {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
