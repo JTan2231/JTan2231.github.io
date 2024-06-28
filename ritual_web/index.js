@@ -23732,11 +23732,7 @@ async function generateAndSetNewsletter(token, entries, setterCallback) {
       const lastInterval = new Date(now);
       lastInterval.setDate(now.getDate() - now.getDay());
       lastInterval.setHours(9, 0, 0, 0);
-      if (newsletter.createdDate < lastInterval) {
-        getLatestNewsletter(token, entries, setterCallback);
-      } else {
-        setterCallback(newsletter);
-      }
+      getLatestNewsletter(token, entries, setterCallback);
     } else {
       getLatestNewsletter(token, entries, setterCallback);
     }
@@ -23764,7 +23760,7 @@ async function getNewsletterIfExists(setterCallback) {
     console.error("Error retrieving data:", event.target.error);
   };
 }
-var API_URL = "https://ritual-api-production.up.railway.app/";
+var API_URL = "http://localhost:5000/";
 var DB_NAME = "ritual";
 var DB_VERSION = 5;
 var STORE_NAMES = {
@@ -23801,8 +23797,7 @@ function Main() {
         display: "flex",
         flexDirection: "column",
         alignItems: "end",
-        width: "100%",
-        height: "15vh"
+        width: "100%"
       },
       children: [
         jsx_dev_runtime.jsxDEV("textarea", {
@@ -23813,7 +23808,7 @@ function Main() {
             width: `calc(100% - 2 * ${padding})`,
             padding,
             borderRadius: "5px",
-            height: "100%"
+            height: "20vh"
           }
         }, undefined, false, undefined, this),
         jsx_dev_runtime.jsxDEV("button", {
@@ -23970,18 +23965,7 @@ function Main() {
       }
     };
     return jsx_dev_runtime.jsxDEV("div", {
-      style: {
-        position: "absolute",
-        left: "50%",
-        top: "40%",
-        transform: "translate(-50%, -50%)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        width: "10vw",
-        height: "15vh",
-        fontFamily: "monospace"
-      },
+      className: "login-page",
       children: [
         jsx_dev_runtime.jsxDEV("h1", {
           style: { margin: 0 },
@@ -24228,45 +24212,29 @@ function Main() {
   };
   return loggedIn ? jsx_dev_runtime.jsxDEV("div", {
     id: "mainBody",
-    style: {
-      position: "absolute",
-      left: "50%",
-      transform: "translateX(-50%)",
-      width: "50vw",
-      top: 0,
-      display: "flex",
-      flexDirection: "row",
-      alignItems: "center"
-    },
+    className: "main-page",
     children: [
       jsx_dev_runtime.jsxDEV("div", {
-        style: {
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          alignSelf: "start",
-          width: "50%",
-          marginBottom: "2rem",
-          marginRight: "1rem"
-        },
+        className: "entry-container",
         children: [
           jsx_dev_runtime.jsxDEV("h1", {
             children: "Ritual"
           }, undefined, false, undefined, this),
           jsx_dev_runtime.jsxDEV(AddEntry, {}, undefined, false, undefined, this),
+          jsx_dev_runtime.jsxDEV("button", {
+            style: { marginBottom: "1rem" },
+            className: "go-to-newsletter",
+            onClick: () => {
+              document.getElementById("newsletterContainer").scrollIntoView({ behavior: "smooth" });
+            },
+            children: "Go to Newsletter"
+          }, undefined, false, undefined, this),
           jsx_dev_runtime.jsxDEV(EntryTable, {}, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
       jsx_dev_runtime.jsxDEV("div", {
-        style: {
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          alignSelf: "start",
-          width: "50%",
-          margin: "2rem 0",
-          marginLeft: "1rem"
-        },
+        id: "newsletterContainer",
+        className: "newsletter-container",
         children: [
           jsx_dev_runtime.jsxDEV(GetNewsletterButton, {}, undefined, false, undefined, this),
           jsx_dev_runtime.jsxDEV("div", {
