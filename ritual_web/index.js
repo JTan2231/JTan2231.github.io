@@ -23760,7 +23760,7 @@ async function getNewsletterIfExists(setterCallback) {
     console.error("Error retrieving data:", event.target.error);
   };
 }
-var API_URL = "http://localhost:5000/";
+var API_URL = "https://ritual-api-production.up.railway.app/";
 var DB_NAME = "ritual";
 var DB_VERSION = 5;
 var STORE_NAMES = {
