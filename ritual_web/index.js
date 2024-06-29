@@ -23732,7 +23732,11 @@ async function generateAndSetNewsletter(token, entries, setterCallback) {
       const lastInterval = new Date(now);
       lastInterval.setDate(now.getDate() - now.getDay());
       lastInterval.setHours(9, 0, 0, 0);
-      getLatestNewsletter(token, entries, setterCallback);
+      if (newsletter.createdDate < lastInterval) {
+        getLatestNewsletter(token, entries, setterCallback);
+      } else {
+        setterCallback(newsletter);
+      }
     } else {
       getLatestNewsletter(token, entries, setterCallback);
     }
