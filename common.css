@@ -1,7 +1,34 @@
 body {
     font-family: monospace;
+    margin: 0;
+    padding: 0;
 }
 
-.content {
-    max-width: calc(0.5 * 1920px);
+.main-window {
+    width: 90%;
+    height: 90vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.display {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.input {
+    width: 100%;
+    height: 1.2rem;
+    display: flex;
+}
+
+.cli {
+    border: 0;
+    background-color: transparent;
+    outline: none;
+    font-family: monospace;
+    font-size: 14px;
+    flex-grow: 1;
 }

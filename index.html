@@ -7,6 +7,8 @@
 
     <link rel="stylesheet" href="./common.css">
 
+    <script src="./cli.js"></script>
+
     <title>Joey Tan</title>
 </head>
 
@@ -17,115 +19,15 @@
 </style>
 
 <body>
-    <div class="content">
-        <h1>Joey Tan</h1>
-        <p>
-            I'm Joey, software developer currently interested in AI and its surrounding infrastructure.
-        </p>
-
-        <p>
-            You can find me on
-        <ul>
-            <li><a class="citation" href="https://github.com/JTan2231">GitHub</a>
-            <li><a class="citation" href="https://www.linkedin.com/in/joseph-tan-478aa5186/">LinkedIn</a>
-            <li><a class="citation" href="https://www.are.na/joey-tan/">Are.na</a>
-            <li><a class="citation" href="https://x.com/joeymtan">Twitter/X</a>
-        </ul>
-        </p>
-
-        <h1>Projects (in progress or otherwise)</h1>
-        <ul>
-            <li><a href="./ritual_web.html">Ritual</a> - Journaling + weekly reflection assistant
-            <li><a href="https://github.com/jtan2231/tllm">TLLM</a> - A GPT terminal interface
-            <li><a href="https://github.com/jtan2231/dewey">Dewey</a> - An embedding index for local files
-            <li><a href="https://github.com/jtan2231/tllm">Scratch</a> - A lightweight scratch pad
-        </ul>
-
-        <h1>To-do</h1>
-        <ul>
-            <li>Read more
-            <li>Write more
-            <li>Note more
-            <li>Use/upgrade projects as tooling for the above
-        </ul>
-
-        <!--h1>Writing</h1>
-        <div>A loose collection of thoughts of varying refinement intended as a scratch pad for the ideas that form my
-            worldview.</div>
-        <ul>
-            <li><a href="./trust.html">Trust</a>
-            <li><a href="./consistency.html">Consistency</a>
-        </ul-->
-
-        <h1>Worklog</h1>
-        <table id="commits-list"
-            style="width: 100%; table-layout: fixed; border: 1px solid black; border-collapse: collapse;">
-            <tr>
-                <td><b>Repository</b></td>
-                <td><b>Commit Date</b></td>
-                <td><b>Commit Message</b></td>
-            </tr>
-        </table>
+    <div class="main-window">
+        <div id="display" class="display"></div>
+        <div class="input">
+            <span>>&nbsp;</span>
+            <input id="cli" class="cli" type="text" onkeydown="cliSubmit(event)">
+        </div>
     </div>
-
-    <script src="./util.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const author = 'JTan2231';
-
-            const endDate = new Date();
-            const startDate = new Date();
-
-            startDate.setDate(endDate.getDate() - 30);
-
-            const format = date => date.toISOString().split('T')[0];
-            const getDate = commit => new Date(commit.commit.committer.date);
-
-            const createColumn = (content, url) => {
-                const column = document.createElement('td');
-                column.style.margin = '1rem';
-                column.style.overflow = 'hidden';
-
-                if (url.length > 0) {
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.innerHTML = content;
-
-                    column.appendChild(link);
-                }
-                else {
-                    column.innerHTML = content;
-                }
-
-                return column;
-            };
-
-            const fetchUrl = `https://api.github.com/search/commits?q=author:${author}+committer-date:${format(startDate)}..${format(endDate)}&per_page=100`;
-
-            fetch(fetchUrl, {
-                headers: {'Accept': 'application/vnd.github.cloak-preview+json'}
-            })
-                .then(response => response.json())
-                .then(data => {
-                    const commitsContainer = document.getElementById('commits-list');
-                    const sorted = data.items.sort((a, b) => getDate(b) - getDate(a));
-                    sorted.forEach(commit => {
-                        const commitTime = getDate(commit).toLocaleString().split(',')[0];
-
-                        const commitRow = document.createElement('tr');
-
-                        commitRow.style.border = '1px solid black';
-
-                        commitRow.appendChild(createColumn(commit.repository.name, commit.repository.html_url));
-                        commitRow.appendChild(createColumn(commitTime, ''));
-                        commitRow.appendChild(createColumn(commit.commit.message, commit.html_url));
-
-                        document.getElementById('commits-list').appendChild(commitRow);
-                    });
-                })
-                .catch(error => console.error('Error fetching commit data:', error));
-        });
-    </script>
 </body>
+
+<script>info()</script>
 
 </html>
