@@ -10,6 +10,7 @@ document.addEventListener('keydown', function(event) {
 
     if (document.activeElement !== input) {
         input.focus();
+        e.preventDefault();
 
         if (event.code === 'Enter') {
             cliSubmit(event);
@@ -125,9 +126,16 @@ function ls(dir) {
             fetch(content)
                 .then(response => response.text())
                 .then(data => {
-                    const lines = data.split('\n');
+                    let lines = data.split('\n');
+                    if (lines.length > 35) {
+                        lines = lines.slice(0, 35);
+                        lines.push('\n\n...');
+                    }
+
+                    lines = lines.join('\n');
+
                     addDisplayItem('<br/>');
-                    lines.forEach(line => addDisplayItem(`<div>${line.length ? line : space}</div>`));
+                    addDisplayItem(marked.parse(lines));
                     addDisplayItem('<br/>');
                 })
                 .catch(error => {
