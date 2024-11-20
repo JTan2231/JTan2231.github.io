@@ -48,11 +48,9 @@ const cdMap = {
     "LinkedIn": "https://www.linkedin.com/in/joseph-tan-478aa5186/",
     "Are.na": "https://www.are.na/joey-tan/channels",
     "Twitter": "https://x.com/joeymtan",
-    "Ritual": "https://joeytan.dev/ritual",
+    "Ritual": "https://joeytan.dev/ritual-api",
     "TLLM": "https://github.com/jtan2231/tllm",
-    "Dewey": "https://github.com/jtan2231/dewey",
-    "Scratch": "https://github.com/jtan2231/scratch",
-    "Bernard": "https://github.com/jtan2231/bernard",
+    "Chamber": "https://github.com/jtan2231/chamber",
 };
 
 const lsMap = {
@@ -68,8 +66,6 @@ const lsMap = {
 }
 
 const projectInfo = {
-    "Ritual": "Journaling + weekly reflection assistant",
-    "TLLM": "A terminal chat interface for large language models",
     "Dewey": "An embedding index for local files",
     "Scratch": "A lightweight scratch pad for handwritten notes",
     "Bernard": "A homemade programming assistant"
@@ -79,8 +75,7 @@ function addDisplayItem(text) {
     const element = document.createElement('div');
     element.innerHTML = text;
 
-    element.style.fontFamily = 'monospace';
-    element.style.fontSize = '14px';
+    element.style.fontSize = '18px';
     element.style.userSelect = 'none';
 
     const display = document.getElementById('display');
@@ -88,17 +83,31 @@ function addDisplayItem(text) {
 }
 
 function info() {
-    const text = `
-<div>I'm Joey, a software developer currently interested in AI and its surrounding infrastructure.</div>
-<br/>
-<div>You can find me on</div>
-${socials.join('\n')}
-<br/>
+    const text = marked.parse(`
+I'm Joey, I enjoy building software from scratch for an intimate understanding of the problem space.
+
+You can find me on
+- ${socials.join('\n- ')}
+
 # Projects
-${Object.entries(projectInfo).map(([project, description]) => `<div><a href="${cdMap[project]}">${project}/</a> - ${description}</div>`).join('\n')}
-<br/>
-<div>Use command \`help\` for more info</div>
-<br/>`;
+- [Ritual/](https://github.com/jtan2231/ritual-api) — (defunct) Journaling + weekly reflection assistant
+- [TLLM/](https://github.com/jtan2231/tllm) — A terminal chat interface for large language models
+  - The only LLM interface I really use
+  - Also has utilities for LLM searching your local filesystem (provided Chamber is installed + running)
+- [Chamber/](https://github.com/jtan2231/chamber) — A suite of LLM agents/utilities for your local filesystem
+  - Currently hosts:
+    - [Dewey](https://github.com/JTan2231/chamber/tree/master/dewey) — Local embedding index
+    - [Bernard](https://github.com/JTan2231/chamber/tree/master/bernard) — Coding assistant
+    - [Alfred](https://github.com/JTan2231/chamber/tree/master/alfred) — Terminal/shell assistance in the form of a CLI
+    - [Metatron](https://github.com/JTan2231/chamber/tree/master/metatron) — README/documentation generator
+  - This is where I spend most of my time. It's more of a tinkering garage than a finished product and is not at all stable.
+  - Outside of TLLM, this is where all my token usage occurs.
+- [Scratch/](https://github.com/jtan2231/scratch) — A basic scratch pad I use for notes
+  - It turns out LLMs are great at transcribing images. With Chamber, it's easy to setup a pipeline for handwriting ➝  indexing ➝  note searching
+
+
+Use command \`help\` for more info
+`);
 
     addDisplayItem(text);
 }
@@ -145,7 +154,8 @@ function ls(dir) {
             addDisplayItem(`ls: ${dir}: No such directory`);
         }
     } else {
-        addDisplayItem(`<div style="display: flex;">${socials.join(space)}${space}${projects.join(space)}</div>`);
+        let s = space + space + space;
+        addDisplayItem(`<div style="display: flex;">${socials.join(s)}${s}${projects.join(s)}</div>`);
     }
 }
 
