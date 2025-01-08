@@ -36,10 +36,8 @@ const socials = [
 
 const projects = [
     '<div><a href="https://github.com/jtan2231/ritual-api">Ritual/</a></div>',
-    '<div><a href="https://github.com/jtan2231/tllm">TLLM/</a></div>',
-    '<div><a href="https://github.com/jtan2231/dewey">Dewey/</a></div>',
-    '<div><a href="https://github.com/jtan2231/scratch">Scratch/</a></div>',
-    '<div><a href="https://github.com/jtan2231/bernard">Bernard/</a></div>',
+    '<div><a href="https://github.com/jtan2231/chamber/tree/master/william">William/</a></div>',
+    '<div><a href="https://github.com/jtan2231/chamber/tree/master/dewey">Dewey/</a></div>',
 ];
 
 // lol
@@ -49,8 +47,9 @@ const cdMap = {
     "Are.na": "https://www.are.na/joey-tan/channels",
     "Twitter": "https://x.com/joeymtan",
     "Ritual": "https://joeytan.dev/ritual-api",
-    "TLLM": "https://github.com/jtan2231/tllm",
-    "Chamber": "https://github.com/jtan2231/chamber",
+    "William": "https://github.com/jtan2231/chamber/tree/master/william",
+    "Dewey": "https://github.com/jtan2231/chamber/tree/master/dewey",
+    "Scratch": "https://github.com/jtan2231/scratch",
 };
 
 const lsMap = {
@@ -91,17 +90,14 @@ You can find me on
 
 # Projects
 - [Ritual/](https://github.com/jtan2231/ritual-api) — (defunct) Journaling + weekly reflection assistant
-- [TLLM/](https://github.com/jtan2231/tllm) — A terminal chat interface for large language models
-  - The only LLM interface I really use
-  - Also has utilities for LLM searching your local filesystem (provided Chamber is installed + running)
 - [Chamber/](https://github.com/jtan2231/chamber) — A suite of LLM agents/utilities for your local filesystem
   - Currently hosts:
     - [Dewey](https://github.com/JTan2231/chamber/tree/master/dewey) — Local embedding index
-    - [Bernard](https://github.com/JTan2231/chamber/tree/master/bernard) — Coding assistant
-    - [Alfred](https://github.com/JTan2231/chamber/tree/master/alfred) — Terminal/shell assistance in the form of a CLI
-    - [Metatron](https://github.com/JTan2231/chamber/tree/master/metatron) — README/documentation generator
+    - [William](https://github.com/JTan2231/chamber/tree/master/william) — WIP desktop LLM client
+      - Bring your own API key, nothing stored outside the local device
+      - Uses Dewey to support memory
+      - Someday aiming for more meaningful interaction with other agents running locally
   - This is where I spend most of my time. It's more of a tinkering garage than a finished product and is not at all stable.
-  - Outside of TLLM, this is where all my token usage occurs.
 - [Scratch/](https://github.com/jtan2231/scratch) — A basic scratch pad I use for notes
   - It turns out LLMs are great at transcribing images. With Chamber, it's easy to setup a pipeline for handwriting ➝  indexing ➝  note searching
 
