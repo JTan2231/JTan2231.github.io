@@ -1,29 +1,767 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spinning ASCII Text</title>
+    <style>
+      :root {
+        color-scheme: only dark;
+      }
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #000;
+        color: #39ff14;
+        height: 97vh;
+        width: 99vw;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+      }
 
-    <link rel="stylesheet" href="./common.css">
+      main {
+        flex: 1 1 auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+      }
 
-    <script src="./cli.js"></script>
+      pre#ascii-text {
+        font-family: monospace, monospace;
+        color: #39ff14;
+        font-size: 16px;
+        line-height: 16px;
+        white-space: pre;
+        overflow: hidden;
+        flex: 0 1 auto;
+        max-width: 100%;
+      }
+      footer {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        position: fixed;
+        bottom: 5vh;
+        padding: 0 1rem;
+        box-sizing: border-box;
+      }
 
-    <title>Joey Tan</title>
-</head>
+      .ascii-links {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: center;
+        gap: clamp(0.5rem, 3vw, 1.5rem);
+        padding: 0;
+        margin: 0;
+        width: min(100%, 52rem);
+      }
 
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+      a.ascii-link {
+        --glow-strength: 0.03;
+        flex: 1 1 0;
+        min-width: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: clamp(0.5rem, 2vw, 0.9rem);
+        border-radius: 12px;
+        position: relative;
+        isolation: isolate;
+        background: rgba(0, 0, 0, 0.55);
+        text-decoration: none;
+        cursor: pointer;
+        transition: border 0.2s ease, box-shadow 0.2s ease,
+          background 0.2s ease, transform 0.2s ease;
+        box-shadow: none;
+      }
 
-<body>
-    <div class="main-window">
-        <div id="display" class="display"></div>
-        <div class="input">
-            <span>>&nbsp;</span>
-            <input id="cli" class="cli" type="text" onkeydown="cliSubmit(event)">
-        </div>
-    </div>
-</body>
+      a.ascii-link:hover,
+      a.ascii-link:focus-visible {
+        transform: translateY(-2px);
+      }
 
-<script>info()</script>
+      a.ascii-link::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: calc(100% - 2.1rem);
+        height: calc(100% - 2.1rem);
+        border-radius: 18px;
+        background: radial-gradient(
+          circle at center,
+          rgba(57, 255, 20, calc(0.05 + 0.7 * var(--glow-strength))) 0%,
+          rgba(57, 255, 20, calc(0.01 + 0.35 * var(--glow-strength))) 28%,
+          rgba(0, 0, 0, 0) 70%
+        );
+        filter: blur(calc(22px + 24px * var(--glow-strength)));
+        opacity: 0.8;
+        transition: opacity 0.2s ease, filter 0.2s ease;
+        pointer-events: none;
+        z-index: 0;
+      }
 
+      a.ascii-link:hover::after,
+      a.ascii-link:focus-visible::after {
+        opacity: 1;
+        filter: blur(calc(28px + 32px * var(--glow-strength)));
+      }
+
+      canvas.ascii-canvas {
+        width: clamp(70px, 22vw, 210px);
+        aspect-ratio: 210 / 130;
+        height: auto;
+        display: block;
+        border-radius: 10px;
+        position: relative;
+        z-index: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <pre id="ascii-text"></pre>
+    </main>
+    <footer>
+      <nav class="ascii-links" aria-label="Social links">
+        <a
+          class="ascii-link"
+          href="https://github.com/JTan2231"
+          target="_blank"
+          rel="noreferrer noopener"
+          aria-label="GitHub"
+          data-ascii-text="GITHUB"
+        >
+          <canvas class="ascii-canvas" width="210" height="130"></canvas>
+        </a>
+        <a
+          class="ascii-link"
+          href="https://www.linkedin.com/in/joseph-tan-478aa5186/"
+          target="_blank"
+          rel="noreferrer noopener"
+          aria-label="LinkedIn"
+          data-ascii-text="LINKEDIN"
+        >
+          <canvas class="ascii-canvas" width="210" height="130"></canvas>
+        </a>
+      </nav>
+    </footer>
+    <script>
+      const WIDTH = 200;
+      const DEFAULT_HEIGHT = 80;
+      const DEPTH = 4;
+      const EXTRUDED_THICKNESS = 3.2;
+      const LINE_HEIGHT_PX = 16;
+      const MIN_HEIGHT_LINES = 10;
+
+      const computeHeightInLines = () =>
+        Math.max(
+          MIN_HEIGHT_LINES,
+          Math.floor(window.innerHeight / LINE_HEIGHT_PX)
+        );
+
+      const glyphs = {
+        " ": ["     ", "     ", "     ", "     ", "     "],
+        A: ["  ##  ", " #  # ", "######", "#    #", "#    #"],
+        B: ["##### ", "#    #", "##### ", "#    #", "##### "],
+        D: ["##### ", "#    #", "#    #", "#    #", "##### "],
+        E: ["######", "#", "#####", "#", "######"],
+        G: [" #### ", "#    #", "#  ###", "#    #", " #### "],
+        H: ["#    #", "#    #", "######", "#    #", "#    #"],
+        I: ["######", "  ##  ", "  ##  ", "  ##  ", "######"],
+        J: ["#####", "    #", "    #", "#   #", " ### "],
+        K: ["#   # ", "#  #  ", "###   ", "#  #  ", "#   # "],
+        L: ["#     ", "#     ", "#     ", "#     ", "######"],
+        N: ["#    #", "##   #", "# #  #", "#  # #", "#   ##"],
+        O: [" #### ", "#    #", "#    #", "#    #", " #### "],
+        R: ["##### ", "#    #", "##### ", "#  #  ", "#   ##"],
+        T: ["######", "  ##  ", "  ##  ", "  ##  ", "  ##  "],
+        U: ["#    #", "#    #", "#    #", "#    #", " #### "],
+        W: ["#    #", "#    #", "# ## #", "##  ##", "#    #"],
+        Y: ["#    #", " #  # ", "  ##  ", "  ##  ", "  ##  "],
+      };
+
+      const DISPLAY_TEXT = "JOEY TAN";
+
+      function buildVoxelsFromText(textValue, depth = DEPTH) {
+        const voxels = [];
+        let minX = Infinity;
+        let maxX = -Infinity;
+        let minY = Infinity;
+        let maxY = -Infinity;
+        let minZ = Infinity;
+        let maxZ = -Infinity;
+        let offsetX = 0;
+
+        for (const char of textValue) {
+          const glyph = glyphs[char];
+          if (!glyph) {
+            offsetX += 6;
+            continue;
+          }
+
+          for (let y = 0; y < glyph.length; y++) {
+            for (let x = 0; x < glyph[y].length; x++) {
+              if (glyph[y][x] === "#") {
+                for (let z = 0; z < depth; z++) {
+                  const vx = x + offsetX;
+                  const vy = y;
+                  const vz = z;
+                  voxels.push({ x: vx, y: vy, z: vz });
+                  if (vx < minX) minX = vx;
+                  if (vx > maxX) maxX = vx;
+                  if (vy < minY) minY = vy;
+                  if (vy > maxY) maxY = vy;
+                  if (vz < minZ) minZ = vz;
+                  if (vz > maxZ) maxZ = vz;
+                }
+              }
+            }
+          }
+
+          offsetX += glyph[0].length + 2;
+        }
+
+        if (!voxels.length) {
+          return { voxels, center: { x: 0, y: 0, z: 0 } };
+        }
+
+        const center = {
+          x: (minX + maxX) / 2,
+          y: (minY + maxY) / 2,
+          z: (minZ + maxZ) / 2,
+        };
+
+        return { voxels, center };
+      }
+
+      function buildExtrudedAsciiGeometry(textValue, thickness = EXTRUDED_THICKNESS) {
+        const occupiedCells = [];
+        const occupiedSet = new Set();
+        let offsetX = 0;
+        let minX = Infinity;
+        let maxX = -Infinity;
+        let minY = Infinity;
+        let maxY = -Infinity;
+
+        for (const char of textValue) {
+          const glyph = glyphs[char];
+          if (!glyph) {
+            offsetX += 6;
+            continue;
+          }
+
+          for (let y = 0; y < glyph.length; y++) {
+            const row = glyph[y];
+            for (let x = 0; x < row.length; x++) {
+              if (row[x] === "#") {
+                const cellX = offsetX + x;
+                const cellY = y;
+                occupiedCells.push({ x: cellX, y: cellY });
+                occupiedSet.add(`${cellX},${cellY}`);
+                if (cellX < minX) minX = cellX;
+                if (cellX + 1 > maxX) maxX = cellX + 1;
+                if (cellY < minY) minY = cellY;
+                if (cellY + 1 > maxY) maxY = cellY + 1;
+              }
+            }
+          }
+
+          offsetX += glyph[0].length + 2;
+        }
+
+        if (!occupiedCells.length) {
+          return { faces: [], center: { x: 0, y: 0, z: 0 } };
+        }
+
+        const halfThickness = thickness / 2;
+        const zFront = -halfThickness;
+        const zBack = halfThickness;
+
+        const faces = [];
+
+        const hasCell = (x, y) => occupiedSet.has(`${x},${y}`);
+
+        const addFace = (vertices, normal) => {
+          faces.push({ vertices, normal });
+        };
+
+        for (const cell of occupiedCells) {
+          const x0 = cell.x;
+          const x1 = cell.x + 1;
+          const y0 = cell.y;
+          const y1 = cell.y + 1;
+
+          const front = [
+            { x: x0, y: y0, z: zFront },
+            { x: x1, y: y0, z: zFront },
+            { x: x1, y: y1, z: zFront },
+            { x: x0, y: y1, z: zFront },
+          ];
+
+          const back = [
+            { x: x0, y: y0, z: zBack },
+            { x: x1, y: y0, z: zBack },
+            { x: x1, y: y1, z: zBack },
+            { x: x0, y: y1, z: zBack },
+          ];
+
+          addFace(front, { x: 0, y: 0, z: -1 });
+          addFace(
+            [back[1], back[0], back[3], back[2]],
+            { x: 0, y: 0, z: 1 }
+          );
+
+          if (!hasCell(cell.x - 1, cell.y)) {
+            addFace(
+              [back[0], back[3], front[3], front[0]],
+              { x: -1, y: 0, z: 0 }
+            );
+          }
+
+          if (!hasCell(cell.x + 1, cell.y)) {
+            addFace(
+              [back[2], back[1], front[1], front[2]],
+              { x: 1, y: 0, z: 0 }
+            );
+          }
+
+          if (!hasCell(cell.x, cell.y - 1)) {
+            addFace(
+              [back[0], back[1], front[1], front[0]],
+              { x: 0, y: -1, z: 0 }
+            );
+          }
+
+          if (!hasCell(cell.x, cell.y + 1)) {
+            addFace(
+              [back[3], back[2], front[2], front[3]],
+              { x: 0, y: 1, z: 0 }
+            );
+          }
+        }
+
+        const center = {
+          x: (minX + maxX) / 2,
+          y: (minY + maxY) / 2,
+          z: (zFront + zBack) / 2,
+        };
+
+        return { faces, center };
+      }
+
+      function renderFrame(voxels, center, rotationY, width, height) {
+        const buffer = Array.from({ length: height }, () =>
+          Array.from({ length: width }, () => " ")
+        );
+
+        for (const voxel of voxels) {
+          let x = voxel.x - center.x;
+          let y = voxel.y - center.y;
+          let z = voxel.z - center.z;
+
+          const x1 = x * Math.cos(rotationY) + z * Math.sin(rotationY);
+          const z1 = -x * Math.sin(rotationY) + z * Math.cos(rotationY);
+          const y1 = y;
+          const z2 = z1;
+
+          const scale = 80;
+          const zOff = 45;
+          const sx = Math.floor(width / 2 + (scale * x1) / (z2 + zOff));
+          const sy = Math.floor(height / 2 + (scale * y1) / (z2 + zOff));
+
+          if (sx >= 0 && sx < width && sy >= 0 && sy < height) {
+            buffer[sy][sx] = "#";
+          }
+        }
+
+        return buffer.map((row) => row.join("")).join("\n");
+      }
+
+      const container = document.getElementById("ascii-text");
+      if (!container) {
+        throw new Error("Failed to find ascii-text container");
+      }
+
+      const { voxels: asciiVoxels, center: asciiCenter } = buildVoxelsFromText(
+        DISPLAY_TEXT,
+        DEPTH
+      );
+      let frameHeight =
+        typeof window === "undefined" ? DEFAULT_HEIGHT : computeHeightInLines();
+      let rotation = 0;
+      let animationId = null;
+
+      function step() {
+        container.textContent = renderFrame(
+          asciiVoxels,
+          asciiCenter,
+          rotation,
+          WIDTH,
+          frameHeight
+        );
+        rotation += 0.01;
+        animationId = requestAnimationFrame(step);
+      }
+
+      animationId = requestAnimationFrame(step);
+
+      if (typeof window !== "undefined") {
+        const handleResize = () => {
+          const nextHeight = computeHeightInLines();
+          if (nextHeight !== frameHeight) {
+            frameHeight = nextHeight;
+          }
+        };
+
+        window.addEventListener("resize", handleResize);
+      }
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          cancelAnimationFrame(animationId);
+        } else {
+          animationId = requestAnimationFrame(step);
+        }
+      });
+
+      function initExtrudedAsciiLinks() {
+        const links = Array.from(document.querySelectorAll(".ascii-link"));
+        if (!links.length) {
+          return;
+        }
+
+        const renderers = [];
+        const axes = ["x", "y", "z"];
+
+        const copySpeeds = (source, destination) => {
+          for (const axis of axes) {
+            destination[axis] = source[axis];
+          }
+        };
+
+        links.forEach((link, index) => {
+          const canvas = link.querySelector(".ascii-canvas");
+          if (!canvas) {
+            return;
+          }
+
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            return;
+          }
+
+          const label = link.getAttribute("aria-label") || "";
+          const rawText =
+            (link.dataset.asciiText || label || link.textContent || "").toUpperCase();
+          const sanitizedText = rawText.replace(/[^A-Z ]/g, "");
+
+          const { faces, center } = buildExtrudedAsciiGeometry(
+            sanitizedText || DISPLAY_TEXT,
+            EXTRUDED_THICKNESS
+          );
+
+          if (!faces.length) {
+            return;
+          }
+
+          let cssWidth = canvas.clientWidth;
+          let cssHeight = canvas.clientHeight;
+          let deviceRatio = window.devicePixelRatio || 1;
+
+          const resizeCanvas = () => {
+            const rect = canvas.getBoundingClientRect();
+            cssWidth = rect.width;
+            cssHeight = rect.height;
+            deviceRatio = window.devicePixelRatio || 1;
+            canvas.width = Math.max(1, Math.round(cssWidth * deviceRatio));
+            canvas.height = Math.max(1, Math.round(cssHeight * deviceRatio));
+          };
+
+          resizeCanvas();
+          window.addEventListener("resize", resizeCanvas);
+
+          const baseAngles = {
+            x: -Math.PI / 6,
+            y: 0.6 + index * 0.18,
+            z: 0,
+          };
+
+          const rotation = { ...baseAngles };
+
+          const speedScale = (speeds) => {
+            const SCALAR = 10;
+            return {
+              x: speeds.x * SCALAR,
+              y: speeds.y * SCALAR,
+              z: speeds.z * SCALAR,
+            };
+          };
+
+          const speedStates = {
+            microwave: {
+              x: 0.000045 + index * 0.000004,
+              y: 0.00021 + index * 0.000018,
+              z: 0.00004 + index * 0.000003,
+            },
+            gyroscopic: speedScale({
+              x: (0.00065 + index * 0.00006),
+              y: (0.00124 + index * 0.00007),
+              z: (0.00066 + index * 0.00005),
+            }),
+          };
+
+          const currentSpeed = { x: 0, y: 0, z: 0 };
+          const targetSpeed = { x: 0, y: 0, z: 0 };
+          copySpeeds(speedStates.microwave, currentSpeed);
+          copySpeeds(speedStates.microwave, targetSpeed);
+
+          const totalMicrowave =
+            Math.abs(speedStates.microwave.x) +
+            Math.abs(speedStates.microwave.y) +
+            Math.abs(speedStates.microwave.z);
+          const totalGyro =
+            Math.abs(speedStates.gyroscopic.x) +
+            Math.abs(speedStates.gyroscopic.y) +
+            Math.abs(speedStates.gyroscopic.z);
+          const magnitudeRange = Math.max(1e-6, totalGyro - totalMicrowave);
+
+          let hoverActive = false;
+          let frameHandle = null;
+          let lastTimestamp = 0;
+
+          link.style.setProperty("--glow-strength", "0.03");
+
+          const setState = (isActive) => {
+            hoverActive = isActive;
+            const stateKey = isActive ? "gyroscopic" : "microwave";
+            copySpeeds(speedStates[stateKey], targetSpeed);
+          };
+
+          const handleEnter = () => setState(true);
+          const handleLeave = () => setState(false);
+
+          link.addEventListener("mouseenter", handleEnter);
+          link.addEventListener("mouseleave", handleLeave);
+          link.addEventListener("focus", handleEnter);
+          link.addEventListener("blur", handleLeave);
+
+          if (
+            link.matches(":hover") ||
+            link === document.activeElement ||
+            link.contains(document.activeElement)
+          ) {
+            setState(true);
+            copySpeeds(targetSpeed, currentSpeed);
+          } else {
+            setState(false);
+          }
+
+          const render = (timestamp) => {
+            if (!lastTimestamp) {
+              lastTimestamp = timestamp;
+            }
+
+            const rawDelta = timestamp - lastTimestamp;
+            const delta = Math.max(0, Math.min(48, rawDelta));
+            lastTimestamp = timestamp;
+
+            const approachRate = 0.00065;
+            const settleRate = 0.001;
+            const approach = Math.min(1, delta * approachRate);
+
+            for (const axis of axes) {
+              const diff = targetSpeed[axis] - currentSpeed[axis];
+              currentSpeed[axis] += diff * approach;
+              rotation[axis] += currentSpeed[axis] * delta;
+            }
+
+            if (!hoverActive) {
+              const settle = Math.min(1, delta * settleRate);
+              rotation.x += (baseAngles.x - rotation.x) * settle;
+              rotation.z += (baseAngles.z - rotation.z) * settle;
+            }
+
+            const sinX = Math.sin(rotation.x);
+            const cosX = Math.cos(rotation.x);
+            const sinY = Math.sin(rotation.y);
+            const cosY = Math.cos(rotation.y);
+            const sinZ = Math.sin(rotation.z);
+            const cosZ = Math.cos(rotation.z);
+
+            const totalCurrent =
+              Math.abs(currentSpeed.x) +
+              Math.abs(currentSpeed.y) +
+              Math.abs(currentSpeed.z);
+            const normalizedActivity = Math.max(
+              0,
+              Math.min(
+                1,
+                (totalCurrent - totalMicrowave) / magnitudeRange
+              )
+            );
+            const glowStrength = 0.03 + normalizedActivity * 0.97;
+            link.style.setProperty(
+              "--glow-strength",
+              glowStrength.toFixed(3)
+            );
+
+            ctx.setTransform(deviceRatio, 0, 0, deviceRatio, 0, 0);
+            ctx.clearRect(0, 0, cssWidth, cssHeight);
+            ctx.lineJoin = "round";
+            ctx.lineCap = "round";
+
+            const perspective = 130;
+            const depthOffset = 72;
+
+            const rotatePosition = (vertex) => {
+              const offsetX = vertex.x - center.x;
+              const offsetY = vertex.y - center.y;
+              const offsetZ = vertex.z - center.z;
+
+              const ry = offsetY * cosX - offsetZ * sinX;
+              const rz = offsetY * sinX + offsetZ * cosX;
+
+              const rx2 = offsetX * cosY + rz * sinY;
+              const ry2 = ry;
+              const rz2 = -offsetX * sinY + rz * cosY;
+
+              const finalX = rx2 * cosZ - ry2 * sinZ;
+              const finalY = rx2 * sinZ + ry2 * cosZ;
+              const finalZ = rz2;
+
+              return { x: finalX, y: finalY, z: finalZ };
+            };
+
+            const rotateNormal = (normal) => {
+              const ry = normal.y * cosX - normal.z * sinX;
+              const rz = normal.y * sinX + normal.z * cosX;
+
+              const rx2 = normal.x * cosY + rz * sinY;
+              const ry2 = ry;
+              const rz2 = -normal.x * sinY + rz * cosY;
+
+              const finalX = rx2 * cosZ - ry2 * sinZ;
+              const finalY = rx2 * sinZ + ry2 * cosZ;
+              const finalZ = rz2;
+
+              return { x: finalX, y: finalY, z: finalZ };
+            };
+
+            const drawableFaces = [];
+
+            for (const face of faces) {
+              const rotatedNormal = rotateNormal(face.normal);
+              const facing = -rotatedNormal.z;
+              if (facing <= 0.01) {
+                continue;
+              }
+
+              const projected = [];
+              let depthSum = 0;
+              let clipped = false;
+
+              for (const vertex of face.vertices) {
+                const rotated = rotatePosition(vertex);
+                const denom = depthOffset + rotated.z;
+                if (denom <= 2) {
+                  clipped = true;
+                  break;
+                }
+                const scale = perspective / denom;
+                const px = cssWidth / 2 + rotated.x * scale;
+                const py = cssHeight / 2 + rotated.y * scale;
+                projected.push({ x: px, y: py });
+                depthSum += rotated.z;
+              }
+
+              if (clipped || projected.length < 3) {
+                continue;
+              }
+
+              drawableFaces.push({
+                projected,
+                facing,
+                avgDepth: depthSum / projected.length,
+              });
+            }
+
+            drawableFaces.sort((a, b) => b.avgDepth - a.avgDepth);
+
+            for (const face of drawableFaces) {
+              const brightness =
+                0.38 +
+                face.facing * 0.45 +
+                normalizedActivity * 0.25;
+              const alpha =
+                0.32 +
+                face.facing * 0.4 +
+                normalizedActivity * 0.28;
+
+              const lightMix = Math.max(0, Math.min(1, brightness));
+              const r = Math.round(25 + 32 * lightMix);
+              const g = Math.round(150 + 105 * lightMix);
+              const b = Math.round(20 + 32 * lightMix);
+
+              ctx.beginPath();
+              ctx.moveTo(face.projected[0].x, face.projected[0].y);
+              for (let i = 1; i < face.projected.length; i++) {
+                ctx.lineTo(face.projected[i].x, face.projected[i].y);
+              }
+              ctx.closePath();
+
+              ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${Math.min(
+                0.95,
+                alpha
+              )})`;
+              ctx.fill();
+
+              ctx.strokeStyle = `rgba(30, 90, 30, ${0.18 + face.facing * 0.35})`;
+              ctx.lineWidth = Math.max(0.6, deviceRatio * 0.6);
+              ctx.stroke();
+            }
+
+            frameHandle = requestAnimationFrame(render);
+          };
+
+          const stop = () => {
+            if (frameHandle !== null) {
+              cancelAnimationFrame(frameHandle);
+              frameHandle = null;
+            }
+            lastTimestamp = 0;
+            setState(false);
+            copySpeeds(speedStates.microwave, currentSpeed);
+            link.style.setProperty("--glow-strength", "0.03");
+          };
+
+          const start = () => {
+            if (frameHandle === null) {
+              frameHandle = requestAnimationFrame(render);
+            }
+          };
+
+          start();
+          renderers.push({ start, stop });
+        });
+
+        document.addEventListener("visibilitychange", () => {
+          if (document.hidden) {
+            renderers.forEach((renderer) => renderer.stop());
+          } else {
+            renderers.forEach((renderer) => renderer.start());
+          }
+        });
+      }
+
+      initExtrudedAsciiLinks();
+    </script>
+  </body>
 </html>
