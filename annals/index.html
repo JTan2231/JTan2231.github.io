@@ -1,0 +1,67 @@
+<html lang="en" data-theme="emerald">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Annals</title>
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./main.js" defer></script>
+</head>
+<body class="bg-base-100 min-h-screen flex flex-col items-center justify-center font-sans">
+  <div class="w-full max-w-lg p-6 flex flex-col items-center space-y-12">
+    
+    <!-- Header -->
+    <div class="text-center space-y-1">
+      <h1 class="text-5xl font-black tracking-tighter text-base-content">annals</h1>
+      <p class="text-base text-base-content/60 italic">"What have I shipped lately?"</p>
+    </div>
+
+    <form id="range-form" class="w-full flex flex-col items-center gap-8">
+      
+      <!-- Natural Language Form -->
+      <div class="flex flex-col gap-6 text-xl sm:text-2xl text-center w-full items-center leading-relaxed">
+        
+        <!-- Time Row -->
+        <div class="flex flex-wrap justify-center items-baseline gap-3 w-full">
+          <span class="text-base-content/50 font-light">Recap my activity in the last</span>
+          <input type="number" id="time-value" value="1" min="1" 
+                 class="bg-transparent border-b-2 border-base-300 focus:border-primary outline-none text-center w-16 font-semibold transition-colors py-1" />
+          <div class="relative inline-block">
+            <select id="time-unit" class="appearance-none bg-transparent border-b-2 border-base-300 focus:border-primary outline-none font-semibold py-1 pr-6 cursor-pointer transition-colors">
+              <option value="days">Days</option>
+              <option value="weeks" selected>Weeks</option>
+              <option value="months">Months</option>
+              <option value="years">Years</option>
+            </select>
+            <!-- Custom chevron for better styling -->
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-base-content/50">
+              <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Date Preview (Small) -->
+        <p id="date-preview" class="text-sm text-base-content/40 font-mono h-4"></p>
+      </div>
+
+      <!-- Action Area -->
+      <div class="flex flex-col items-center gap-6 w-full max-w-sm">
+        <button type="submit" id="main-action-btn" class="btn btn-primary btn-lg w-full rounded-full shadow-lg hover:shadow-xl transition-all gap-2">
+          <!-- Icon will be injected by JS -->
+          <span id="btn-text">Sign in with GitHub</span>
+        </button>
+        
+        <div id="user-status" class="text-xs text-base-content/50 hidden">
+          Signed in as <span id="user-login" class="font-bold"></span> 
+          <button type="button" id="logout-btn" class="underline hover:text-base-content">Sign out</button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Output -->
+    <div id="result-container" class="hidden w-full pt-8 border-t border-base-200">
+      <pre id="result" class="font-mono text-sm whitespace-pre-wrap text-base-content/80"></pre>
+    </div>
+
+  </div>
+</body>
+</html>
