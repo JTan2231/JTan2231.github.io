@@ -1716,7 +1716,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
   background: #444;
 }
 .primary-btn {
-  background: linear-gradient(120deg, var(--cta-start), var(--cta-end));
+  background: radial-gradient(circle at center, var(--cta-end), var(--cta-start));
   color: var(--cta-text);
   box-shadow: var(--cta-shadow);
   border: 1px solid rgba(255, 255, 255, 0.08);
