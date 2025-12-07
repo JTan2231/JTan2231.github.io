@@ -42,7 +42,7 @@ function updateUIState() {
     mainBtn.innerHTML = `
       <div class="relative flex items-center gap-2">
         ${GITHUB_ICON} 
-        <span>Sign in with GitHub</span>
+        <span>Install GitHub App</span>
       </div>`;
     userStatusDiv.classList.add("hidden");
   }
