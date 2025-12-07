@@ -12,7 +12,7 @@ var timeUnitSelect = document.getElementById("time-unit");
 var datePreview = document.getElementById("date-preview");
 var API_BASE = (() => {
   try {
-    return '"https://annals-web-production.up.railway.app"';
+    return "https://annals-web-production.up.railway.app";
   } catch {
     return "";
   }
