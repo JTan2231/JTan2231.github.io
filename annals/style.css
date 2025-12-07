@@ -3,12 +3,89 @@
 
 @source "../frontend/**/*.{html,ts}";
 
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap');
+/* 1. Install Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;400;600&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-  font-family: 'Space Grotesk', system-ui, sans-serif;
+  --font-display: 'Fraunces', serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  
+  /* "Developer Luxury" Palette */
+  --bg-deep: #050505;
+  --bg-surface: rgba(20, 20, 20, 0.6);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --text-primary: #ededed;
+  --text-secondary: #a1a1aa;
+  --accent-glow: rgba(255, 255, 255, 0.15);
 }
 
+/* 2. Global "Cinematic" Background */
 body {
-    @apply min-h-screen bg-base-300 text-base-content p-4;
+    @apply min-h-screen text-gray-200 antialiased selection:bg-white/20;
+    background-color: var(--bg-deep);
+    background-image: 
+        radial-gradient(circle at 50% 0%, #2a2a2a 0%, transparent 60%),
+        linear-gradient(to bottom, #000000 0%, transparent 100%);
+    font-family: var(--font-body);
+}
+
+/* 3. Typography Utilities */
+.font-display {
+    font-family: var(--font-display);
+}
+
+.font-mono-custom {
+    font-family: var(--font-mono);
+}
+
+/* 4. The "Bento" Card Glass Effect */
+.glass-panel {
+    background: var(--bg-surface);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-subtle);
+    box-shadow: 
+        0 4px 6px -1px rgba(0, 0, 0, 0.1), 
+        0 2px 4px -1px rgba(0, 0, 0, 0.06),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+}
+
+/* 5. Custom Form Controls (Natural Language) */
+.input-natural {
+    @apply bg-transparent border-b border-white/10 text-center transition-colors outline-none rounded-none px-1;
+    color: var(--text-primary);
+}
+
+.input-natural:focus {
+    @apply border-white/40;
+}
+
+.input-natural:hover:not(:focus) {
+    @apply border-white/20;
+}
+
+/* Hide spin buttons for number input */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+
+/* 6. Custom Scrollbar for Output */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #444;
 }

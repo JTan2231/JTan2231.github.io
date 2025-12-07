@@ -31,14 +31,19 @@ async function checkSession() {
 }
 function updateUIState() {
   if (currentUser) {
-    mainBtn.innerHTML = `${BOLT_ICON} Generate Recap`;
-    mainBtn.classList.remove("btn-outline");
-    mainBtn.classList.add("btn-primary");
+    mainBtn.innerHTML = `
+      <div class="relative flex items-center gap-2">
+        ${BOLT_ICON} 
+        <span>Generate Recap</span>
+      </div>`;
     userStatusDiv.classList.remove("hidden");
     userLoginSpan.textContent = currentUser;
   } else {
-    mainBtn.innerHTML = `${GITHUB_ICON} Sign in with GitHub`;
-    mainBtn.classList.add("btn-primary");
+    mainBtn.innerHTML = `
+      <div class="relative flex items-center gap-2">
+        ${GITHUB_ICON} 
+        <span>Sign in with GitHub</span>
+      </div>`;
     userStatusDiv.classList.add("hidden");
   }
 }
@@ -86,6 +91,7 @@ function calculateDateRange() {
   const startStr = start.toLocaleDateString(undefined, options);
   const endStr = now.toLocaleDateString(undefined, options);
   datePreview.textContent = `${startStr} → ${endStr}`;
+  datePreview.style.opacity = "1";
   return { startDate, endDate };
 }
 async function submitForm() {
