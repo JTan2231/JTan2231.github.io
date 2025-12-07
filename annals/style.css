@@ -1,10 +1,10 @@
+/* 1. Install Fonts */
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;400;600&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
+
 @import "tailwindcss";
 @plugin "daisyui";
 
 @source "../frontend/**/*.{html,ts}";
-
-/* 1. Install Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;400;600&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
   --font-display: 'Fraunces', serif;
