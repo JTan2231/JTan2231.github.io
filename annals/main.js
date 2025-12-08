@@ -54,7 +54,9 @@ function parseSseChunk(raw) {
 }
 async function checkSession() {
   try {
-    const res = await fetch(`${API_BASE}/api/session`);
+    const res = await fetch(`${API_BASE}/api/session`, {
+      credentials: "include"
+    });
     const data = await res.json();
     return data.authenticated ? data.user.login : null;
   } catch (err) {
@@ -204,6 +206,7 @@ async function submitForm() {
         "Content-Type": "application/json",
         Accept: "text/event-stream"
       },
+      credentials: "include",
       body: JSON.stringify(body),
       signal: controller.signal
     });
@@ -424,7 +427,10 @@ form.addEventListener("submit", async (event) => {
       unit: timeUnitSelect.value
     };
     localStorage.setItem("pending_recap", JSON.stringify(state));
-    window.location.href = `${API_BASE}/auth/login`;
+    const params = new URLSearchParams({
+      redirect: window.location.href
+    });
+    window.location.href = `${API_BASE}/auth/login?${params.toString()}`;
   }
 });
 calculateDateRange();
