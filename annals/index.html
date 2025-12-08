@@ -1,128 +1,16 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="black">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta http-equiv="refresh" content="0; url=https://annals-web-production.up.railway.app" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Annals</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css">
-  <script type="module" src="./main.js" defer></script>
+  <title>Redirecting...</title>
+  <script>
+    // Use JS redirect for faster navigation; meta tag above is a fallback.
+    window.location.replace("https://annals-web-production.up.railway.app");
+  </script>
 </head>
-<body class="flex flex-col items-center justify-center p-4 sm:p-8">
-  
-  <div class="w-full max-w-2xl flex flex-col gap-8 fade-in">
-    
-    <!-- 1. Header Area: Editorial & Cinematic -->
-    <header class="text-center space-y-4 pt-10 pb-6">
-      <h1 class="font-display text-5xl sm:text-6xl font-light tracking-tight text-transparent bg-clip-text headline-gradient">
-        Annals
-      </h1>
-      <p class="text-base font-light tracking-wide uppercase text-xs subtitle-text">
-        The Developer's Log
-      </p>
-    </header>
-
-    <!-- 3. Output Section: The "Terminal" -->
-    <section id="result-container" class="hidden w-full transition-all duration-700 ease-in-out max-h-0 opacity-0 transform translate-y-4">
-        <div class="glass-panel rounded-xl p-1 overflow-hidden">
-            <div id="output-window" class="terminal-surface rounded-lg p-4 sm:p-6 max-h-[60vh] overflow-y-auto custom-scrollbar" style="height: auto;">
-            
-                <div id="result" class="font-mono-custom text-xs sm:text-sm leading-relaxed terminal-text stream-text flex flex-col gap-4"></div>
-            </div>
-        </div>
-    </section>
-
-    <!-- 2. The Main "Bento" Interaction Card -->
-    <main class="glass-panel rounded-3xl p-8 sm:p-12 w-full relative overflow-hidden group">
-      
-      <!-- GitHub Link -->
-      <a href="https://github.com/JTan2231/annals" target="_blank" rel="noopener noreferrer" class="absolute top-4 right-4 text-white/20 hover:text-white/90 transition-colors p-2 z-20" aria-label="View Source on GitHub">
-        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"></path></svg>
-      </a>
-
-      <!-- Subtle internal lighting effect -->
-      <div class="absolute -top-24 -right-24 w-64 h-64 bg-[#ffb36b]/[0.02] rounded-full blur-3xl pointer-events-none group-hover:bg-[#ffb36b]/[0.05] transition-colors duration-1000"></div>
-
-      <form id="range-form" class="relative z-10 flex flex-col gap-10">
-        
-        <!-- Natural Language Input -->
-        <div class="flex flex-col gap-4 text-center items-center">
-          <div class="font-display text-xl sm:text-2xl md:text-3xl font-light leading-relaxed flex flex-wrap justify-center gap-x-3 gap-y-2 lead-text">
-            <span>Recap my activity in the last</span>
-            
-            <div class="relative inline-flex flex-col items-center">
-                <input type="number" id="time-value" value="1" min="1" 
-                       class="input-natural w-16 font-medium placeholder-white/20" />
-            </div>
-
-            <div class="relative inline-block">
-              <select id="time-unit" class="appearance-none input-natural font-medium pr-8 cursor-pointer">
-                <option value="days" class="text-black">Days</option>
-                <option value="weeks" selected class="text-black">Weeks</option>
-                <option value="months" class="text-black">Months</option>
-                <option value="years" class="text-black">Years</option>
-              </select>
-              <!-- Minimal chevron -->
-              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-1 text-white/40">
-                <svg class="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-              </div>
-            </div>
-          </div>
-          
-          <p id="date-preview" class="font-mono-custom text-xs tracking-widest uppercase h-4 opacity-0 transition-opacity duration-300 date-preview-text"></p>
-        </div>
-
-        <!-- Action Button -->
-        <div id="action-buttons" class="flex justify-center w-full gap-3 flex-wrap transition-all duration-500 ease-in-out max-h-[500px] opacity-100 overflow-hidden">
-            <button type="submit" id="main-action-btn" class="group relative px-8 py-3 rounded-full font-medium text-sm transition-all hover:scale-[1.02] active:scale-[0.98] overflow-hidden primary-btn">
-                <div class="absolute inset-0 bg-white/10 opacity-0 group-hover:animate-glow-pulse rounded-full"></div>
-                <span id="btn-text" class="relative flex items-center gap-2">
-                   <!-- Icon injected via JS -->
-                   Sign in with GitHub
-                </span>
-            </button>
-        </div>
-        
-        <div id="user-status" class="text-center text-xs status-text hidden">
-            <span class="font-mono-custom">user: </span><span id="user-login" class="font-medium status-strong"></span> 
-            <button type="button" id="logout-btn" class="ml-2 transition-colors underline decoration-white/20 status-link">Sign out</button>
-        </div>
-
-      </form>
-    </main>
-
-  </div>
-
-  <style>
-    @keyframes glow-pulse {
-        0% { opacity: 0; transform: scale(0.8); }
-        50% { opacity: 0.3; transform: scale(1.1); }
-        100% { opacity: 0; transform: scale(0.8); }
-    }
-    .animate-glow-pulse {
-        animation: glow-pulse 2s infinite ease-in-out;
-    }
-    
-    .fade-in {
-        animation: fadeIn 0.8s ease-out forwards;
-        opacity: 0;
-    }
-
-    .fade-in-up {
-        animation: fadeInUp 0.6s ease-out forwards;
-        opacity: 0;
-        transform: translateY(20px);
-    }
-
-    @keyframes fadeIn {
-        to { opacity: 1; }
-    }
-
-    @keyframes fadeInUp {
-        to { opacity: 1; transform: translateY(0); }
-    }
-  </style>
+<body>
+  <p>If you are not redirected, <a href="https://annals-web-production.up.railway.app">click here</a>.</p>
 </body>
 </html>
