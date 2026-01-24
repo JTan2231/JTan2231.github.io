@@ -1,61 +1,24 @@
-# llms.txt - Joey Tan
+# Joey Tan
 
-## Identity
-Joey Tan is a software engineer (from the site index) and writes as "joey tan" on Substack.
-GitHub shows the username JTan2231 with a broad set of repositories and ongoing contributions.
-The LinkedIn public preview (sign-in gated) lists Nashville, Tennessee, United States and
-an association with Jackson, but the full profile details are not publicly visible.
+> Software engineer and writer focused on legibility, prompting, and feedback loops.
 
-## Work focus: legibility
-He is preoccupied with making ideas legible, not just writing them down. In his essay
-"Legibility," he highlights how ideas fail to land because of framing, timing, and missing
-feedback loops, and how these failure modes are hard to diagnose. The throughline is a drive
-to make meaning explicit and actionable, especially under real-world time pressure.
+This file points to Joey Tan's public writing, projects, and profiles.
 
-## Product: Stet
-Stet is a workspace for writers who want clear feedback without ghostwriting. The product
-positions itself as getting notes on structure, clarity, and argument, rather than rewriting
-the work itself. It also stresses privacy and control: content is not used to train AI models,
-and users can decide what is saved and what the AI can see.
+## Home
+- [Home](llms/joeytan-dev-home.md): Short profile with links to writing and projects. Original: [joeytan.dev](https://joeytan.dev/).
+- [Annals](llms/joeytan-dev-annals.md): Activity recap web app (redirects to hosted app). Original: [joeytan.dev/annals](https://joeytan.dev/annals/).
 
-## Prompt design mindset
-He frames prompts as a workspace that defines the AI's world, not just a question to ask.
-He contrasts blank chat interfaces with integrated environments like Cursor, where the AI
-shares files, tools, and context with the user. For him, the leverage is in coherent world-
-building: clear boundaries, shared artifacts, and predictable handles for action.
+## Writing
+- [Designing a Prompt](llms/substack-designing-a-prompt.md): Prompts as world-building and shared context. Original: [Substack](https://legibility.substack.com/p/designing-a-prompt).
+- [Legibility](llms/substack-legibility.md): Why ideas fail to land and how to diagnose it. Original: [Substack](https://legibility.substack.com/p/legibility).
+- [AI Prompting as Policy Drafting](llms/substack-ai-prompting-as-policy-drafting.md): Prompting as governance for fast-moving systems. Original: [Substack](https://legibility.substack.com/p/ai-prompting-as-policy-drafting).
 
-## Policy drafting as engineering leverage
-He argues that as code generation gets easier, the skill premium shifts from syntax to policy
-drafting. He likens prompt and documentation work to organizational governance: structured
-English that constrains agents' behavior in systems with real consequences. He stresses that
-precise terminology and comprehensive documentation are essential to keep fast-moving, agent-
-assisted development from destabilizing systems.
+## Projects
+- [Stet](llms/stet.md): Feedback workspace for writers focused on structure and clarity. Original: [stet.ink](https://stet.ink).
 
-## Engineering footprint
-GitHub lists 73 repositories and a pinned Rust project, `vizier`, described as "a configurable
-agent development workflow." He also contributes to `castra` and `castrum`, suggesting a cluster
-of agent- or infra-oriented projects. The activity graph shows heavy commit volume over the last
-year, reinforcing an active builder profile.
+## Profiles
+- [GitHub](llms/github-jtan2231.md): Code, repos, and activity. Original: [github.com/JTan2231](https://github.com/JTan2231).
 
-## Other project: Annals
-Annals appears as a web app that recaps activity over selectable windows (days/weeks/months/
-years) and connects to GitHub. The public view is minimal, but the UI implies a focus on
-reflective summaries of activity. It aligns with his broader interest in feedback loops and
-legibility over time.
-
-## Writing voice
-His essays use concrete scenarios (party conversations, coworker emails, editing struggles)
-to surface abstract problems in communication and tooling. He blends product thinking with
-system design analogies, moving between human collaboration and agent constraints. The tone
-is analytical but practical, aimed at diagnosing why ideas fail to land and how interfaces can
-make them land more reliably.
-
-## Sources
-- /Users/joey/ts/jtan2231.github.io/index.html
-- https://github.com/JTan2231
-- https://www.linkedin.com/in/joseph-tan-478aa5186/
-- https://stet.ink
-- https://legibility.substack.com/p/legibility
-- https://legibility.substack.com/p/designing-a-prompt
-- https://legibility.substack.com/p/ai-prompting-as-policy-drafting
-- https://annals-web-production.up.railway.app
+## Optional
+- [LinkedIn](llms/linkedin-joseph-tan.md): Professional profile (sign-in gated). Original: [linkedin.com](https://www.linkedin.com/in/joseph-tan-478aa5186/).
+- [Bio prompt](llms/joeytan-dev-bio-prompt.md): Internal prompt used to generate biographical summaries. Original: [joeytan.dev/bio-prompt.md](https://joeytan.dev/bio-prompt.md).
