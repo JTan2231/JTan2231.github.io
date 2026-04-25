@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["F96ST3ZS59.com.chamber.solari"],
+        "components": [
+          {
+            "/": "/plaid/*",
+            "comment": "Matches Plaid OAuth redirect paths."
+          }
+        ]
+      }
+    ]
+  }
+}
