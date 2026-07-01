@@ -58,6 +58,19 @@
           hover: null,
           pressed: null,
         };
+        const dragState = {
+          letter: null,
+          pointerId: null,
+          offsetX: 0,
+          offsetY: 0,
+          targetX: 0,
+          targetY: 0,
+          lastX: 0,
+          lastY: 0,
+          lastTime: 0,
+          vx: 0,
+          vy: 0,
+        };
 
         let width = 0;
         let height = 0;
@@ -65,7 +78,7 @@
         let letters = [];
         let lastFrame = performance.now();
         let palette = getPalette();
-        let showVelocityVectors = false;
+        let cursorCollidable = true;
 
         const random = (min, max) => min + Math.random() * (max - min);
         const clamp = (value, min, max) =>
@@ -73,7 +86,7 @@
         const font = (size, weight) =>
           `${weight} ${size}px ${fontFamily}`;
         const maxLetterSpeed = () =>
-          clamp(Math.min(width, height) * 1.12, 420, 760);
+          clamp(Math.min(width, height) * 1.28, 500, 920);
 
         function getCanvasPoint(event) {
           const rect = canvas.getBoundingClientRect();
@@ -89,6 +102,7 @@
         }
 
         function resize() {
+          endLetterDrag();
           width = window.innerWidth;
           height = window.innerHeight;
           dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
@@ -186,7 +200,8 @@
         }
 
         function resetCanvas() {
-          showVelocityVectors = false;
+          endLetterDrag();
+          cursorCollidable = true;
           controls.pressed = null;
           resetPointer();
           palette = getPalette();
@@ -215,6 +230,155 @@
           pointer.lastTime = now;
         }
 
+        function getLetterAt(x, y) {
+          for (let index = letters.length - 1; index >= 0; index -= 1) {
+            const letter = letters[index];
+            const dx = x - letter.x;
+            const dy = y - letter.y;
+
+            if (dx * dx + dy * dy <= letter.radius * letter.radius) {
+              return letter;
+            }
+          }
+
+          return null;
+        }
+
+        function isDraggingLetter(letter) {
+          return dragState.letter === letter;
+        }
+
+        function getFreshDragVelocity(multiplier = 1) {
+          const staleTime = Math.max((performance.now() - dragState.lastTime) / 1000, 0);
+          const freshness = Math.exp(-staleTime * 5.8);
+
+          return {
+            vx: dragState.vx * freshness * multiplier,
+            vy: dragState.vy * freshness * multiplier,
+          };
+        }
+
+        function positionDraggedLetter() {
+          const letter = dragState.letter;
+
+          if (!letter) {
+            return;
+          }
+
+          letter.x = clamp(dragState.targetX, letter.radius, width - letter.radius);
+          letter.y = clamp(dragState.targetY, letter.radius, height - letter.radius);
+          const velocity = getFreshDragVelocity();
+          letter.vx = velocity.vx;
+          letter.vy = velocity.vy;
+          letter.spin *= 0.72;
+        }
+
+        function updateDragVelocity(point) {
+          const now = performance.now();
+
+          if (dragState.lastTime > 0) {
+            const elapsed = Math.max((now - dragState.lastTime) / 1000, 1 / 240);
+            const nextVx = (point.x - dragState.lastX) / elapsed;
+            const nextVy = (point.y - dragState.lastY) / elapsed;
+
+            dragState.vx = dragState.vx * 0.2 + nextVx * 0.8;
+            dragState.vy = dragState.vy * 0.2 + nextVy * 0.8;
+          }
+
+          dragState.lastX = point.x;
+          dragState.lastY = point.y;
+          dragState.lastTime = now;
+        }
+
+        function updateDraggedTarget(point) {
+          if (!dragState.letter) {
+            return;
+          }
+
+          updateDragVelocity(point);
+          dragState.targetX = point.x + dragState.offsetX;
+          dragState.targetY = point.y + dragState.offsetY;
+          positionDraggedLetter();
+        }
+
+        function beginLetterDrag(event, letter, point) {
+          dragState.letter = letter;
+          dragState.pointerId = event.pointerId;
+          dragState.offsetX = letter.x - point.x;
+          dragState.offsetY = letter.y - point.y;
+          dragState.targetX = letter.x;
+          dragState.targetY = letter.y;
+          dragState.lastX = point.x;
+          dragState.lastY = point.y;
+          dragState.lastTime = performance.now();
+          dragState.vx = 0;
+          dragState.vy = 0;
+          letter.vx = 0;
+          letter.vy = 0;
+          letter.spin = 0;
+          positionDraggedLetter();
+
+          if (canvas.setPointerCapture) {
+            canvas.setPointerCapture(event.pointerId);
+          }
+        }
+
+        function applyReleaseMomentum(letter) {
+          const launch = 1.38;
+          const maxLaunchSpeed = maxLetterSpeed() * 1.45;
+          const velocity = getFreshDragVelocity(launch);
+          let vx = velocity.vx;
+          let vy = velocity.vy;
+          const speed = Math.hypot(vx, vy);
+
+          if (speed > maxLaunchSpeed) {
+            const scale = maxLaunchSpeed / speed;
+            vx *= scale;
+            vy *= scale;
+          }
+
+          letter.vx = vx;
+          letter.vy = vy;
+          letter.spin = clamp(
+            letter.spin +
+              ((dragState.offsetX * vy - dragState.offsetY * vx) /
+                Math.max(letter.radius * letter.radius, 1)) *
+                0.16,
+            -4.6,
+            4.6
+          );
+        }
+
+        function endLetterDrag(event, releaseWithMomentum = false) {
+          if (!dragState.letter) {
+            return;
+          }
+
+          if (releaseWithMomentum) {
+            applyReleaseMomentum(dragState.letter);
+          }
+
+          if (
+            dragState.pointerId !== null &&
+            canvas.hasPointerCapture &&
+            canvas.hasPointerCapture(dragState.pointerId)
+          ) {
+            canvas.releasePointerCapture(dragState.pointerId);
+          }
+
+          dragState.letter = null;
+          dragState.pointerId = null;
+          dragState.offsetX = 0;
+          dragState.offsetY = 0;
+          dragState.targetX = 0;
+          dragState.targetY = 0;
+          dragState.lastX = 0;
+          dragState.lastY = 0;
+          dragState.lastTime = 0;
+          dragState.vx = 0;
+          dragState.vy = 0;
+        }
+
         function collideWithWalls(letter) {
           const bounce = 0.86;
 
@@ -240,7 +404,7 @@
         }
 
         function collideWithPointer(letter) {
-          if (!pointer.active) {
+          if (!cursorCollidable || !pointer.active) {
             return;
           }
 
@@ -278,6 +442,13 @@
         }
 
         function collideLetters(a, b) {
+          const aPinned = isDraggingLetter(a);
+          const bPinned = isDraggingLetter(b);
+
+          if (aPinned && bPinned) {
+            return;
+          }
+
           let dx = b.x - a.x;
           let dy = b.y - a.y;
           const minDistance = a.radius + b.radius;
@@ -300,33 +471,43 @@
           const nx = dx / distance;
           const ny = dy / distance;
           const velocityAlongNormal = rvx * nx + rvy * ny;
+          const overlap = minDistance - distance;
+          const inverseMassA = aPinned ? 0 : 1 / a.mass;
+          const inverseMassB = bPinned ? 0 : 1 / b.mass;
+          const inverseMassTotal = inverseMassA + inverseMassB;
+
+          if (inverseMassTotal === 0) {
+            return;
+          }
+
+          a.x -= nx * overlap * (inverseMassA / inverseMassTotal);
+          a.y -= ny * overlap * (inverseMassA / inverseMassTotal);
+          b.x += nx * overlap * (inverseMassB / inverseMassTotal);
+          b.y += ny * overlap * (inverseMassB / inverseMassTotal);
 
           if (velocityAlongNormal >= 0) {
             return;
           }
 
-          const overlap = minDistance - distance;
-          const totalMass = a.mass + b.mass;
-
-          a.x -= nx * overlap * (b.mass / totalMass);
-          a.y -= ny * overlap * (b.mass / totalMass);
-          b.x += nx * overlap * (a.mass / totalMass);
-          b.y += ny * overlap * (a.mass / totalMass);
-
           const restitution = 0.88;
           const impulse =
             (-(1 + restitution) * velocityAlongNormal) /
-            (1 / a.mass + 1 / b.mass);
+            inverseMassTotal;
           const impulseX = impulse * nx;
           const impulseY = impulse * ny;
           const tangentVelocity = rvx * -ny + rvy * nx;
 
-          a.vx -= impulseX / a.mass;
-          a.vy -= impulseY / a.mass;
-          b.vx += impulseX / b.mass;
-          b.vy += impulseY / b.mass;
-          a.spin -= tangentVelocity * 0.002;
-          b.spin += tangentVelocity * 0.002;
+          if (!aPinned) {
+            a.vx -= impulseX * inverseMassA;
+            a.vy -= impulseY * inverseMassA;
+            a.spin -= tangentVelocity * 0.002;
+          }
+
+          if (!bPinned) {
+            b.vx += impulseX * inverseMassB;
+            b.vy += impulseY * inverseMassB;
+            b.spin += tangentVelocity * 0.002;
+          }
         }
 
         function limitVelocity(letter) {
@@ -360,6 +541,11 @@
           const spinDrag = Math.pow(0.993, dt * 60);
 
           letters.forEach((letter) => {
+            if (isDraggingLetter(letter)) {
+              positionDraggedLetter();
+              return;
+            }
+
             applyFriction(letter, dt);
             letter.spin *= spinDrag;
             letter.x += letter.vx * dt;
@@ -376,9 +562,16 @@
                 collideLetters(letters[index], letters[other]);
               }
             }
+
+            positionDraggedLetter();
           }
 
           letters.forEach((letter) => {
+            if (isDraggingLetter(letter)) {
+              positionDraggedLetter();
+              return;
+            }
+
             collideWithWalls(letter);
             limitVelocity(letter);
           });
@@ -396,7 +589,7 @@
 
           return [
             {
-              id: "vectors",
+              id: "collision",
               x: resetX - gap - size,
               y: top,
               width: size,
@@ -443,37 +636,6 @@
           context.closePath();
         }
 
-        function drawVectorIcon(control) {
-          const left = control.x + control.width * 0.28;
-          const top = control.y + control.height * 0.68;
-          const right = control.x + control.width * 0.72;
-          const bottom = control.y + control.height * 0.32;
-          const head = control.width * 0.14;
-          const angle = Math.atan2(bottom - top, right - left);
-
-          context.beginPath();
-          context.moveTo(left, top);
-          context.lineTo(right, bottom);
-          context.stroke();
-
-          context.beginPath();
-          context.moveTo(right, bottom);
-          context.lineTo(
-            right - Math.cos(angle - 0.55) * head,
-            bottom - Math.sin(angle - 0.55) * head
-          );
-          context.moveTo(right, bottom);
-          context.lineTo(
-            right - Math.cos(angle + 0.55) * head,
-            bottom - Math.sin(angle + 0.55) * head
-          );
-          context.stroke();
-
-          context.beginPath();
-          context.arc(left, top, control.width * 0.045, 0, Math.PI * 2);
-          context.fill();
-        }
-
         function drawResetIcon(control) {
           const centerX = control.x + control.width / 2;
           const centerY = control.y + control.height / 2;
@@ -495,56 +657,45 @@
           context.stroke();
         }
 
-        function drawVelocityVectors() {
-          const maxSpeed = maxLetterSpeed();
-          const maxLength = clamp(Math.min(width, height) * 0.13, 34, 86);
+        function drawCollisionIcon(control) {
+          const centerX = control.x + control.width * 0.58;
+          const centerY = control.y + control.height * 0.46;
+          const radius = control.width * 0.18;
+          const left = control.x + control.width * 0.31;
+          const top = control.y + control.height * 0.24;
+          const tipX = control.x + control.width * 0.67;
+          const tipY = control.y + control.height * 0.58;
+          const tailX = control.x + control.width * 0.44;
+          const tailY = control.y + control.height * 0.68;
+          const notchX = control.x + control.width * 0.44;
+          const notchY = control.y + control.height * 0.48;
 
-          context.save();
-          context.strokeStyle = "rgba(0, 100, 190, 0.72)";
-          context.fillStyle = "rgba(0, 100, 190, 0.72)";
-          context.lineWidth = 1.6;
-          context.lineCap = "round";
-          context.lineJoin = "round";
+          context.beginPath();
+          context.moveTo(left, top);
+          context.lineTo(tipX, tipY);
+          context.lineTo(control.x + control.width * 0.51, control.y + control.height * 0.6);
+          context.lineTo(tailX, tailY);
+          context.lineTo(control.x + control.width * 0.36, control.y + control.height * 0.72);
+          context.lineTo(notchX, notchY);
+          context.closePath();
+          context.stroke();
 
-          letters.forEach((letter) => {
-            const speed = Math.hypot(letter.vx, letter.vy);
-
-            if (speed < 4) {
-              return;
-            }
-
-            const scale = (clamp(speed / maxSpeed, 0.08, 1) * maxLength) / speed;
-            const endX = letter.x + letter.vx * scale;
-            const endY = letter.y + letter.vy * scale;
-            const angle = Math.atan2(endY - letter.y, endX - letter.x);
-            const head = clamp(letter.radius * 0.28, 4, 8);
-
+          if (cursorCollidable) {
             context.beginPath();
-            context.moveTo(letter.x, letter.y);
-            context.lineTo(endX, endY);
+            context.arc(centerX, centerY, radius, 0, Math.PI * 2);
             context.stroke();
-
+          } else {
             context.beginPath();
-            context.moveTo(endX, endY);
-            context.lineTo(
-              endX - Math.cos(angle - 0.52) * head,
-              endY - Math.sin(angle - 0.52) * head
-            );
-            context.moveTo(endX, endY);
-            context.lineTo(
-              endX - Math.cos(angle + 0.52) * head,
-              endY - Math.sin(angle + 0.52) * head
-            );
+            context.moveTo(centerX - radius * 0.92, centerY + radius * 0.92);
+            context.lineTo(centerX + radius * 0.92, centerY - radius * 0.92);
             context.stroke();
-          });
-
-          context.restore();
+          }
         }
 
         function drawControls() {
           // DOM-less controls: buttons are drawn on the canvas and hit-tested here.
           getControlRects().forEach((control) => {
-            const isActive = control.id === "vectors" && showVelocityVectors;
+            const isActive = control.id === "collision" && cursorCollidable;
             const isHovered = controls.hover === control.id;
             const isPressed = controls.pressed === control.id;
             const offset = isPressed ? 1 : 0;
@@ -568,8 +719,8 @@
             context.lineCap = "round";
             context.lineJoin = "round";
 
-            if (control.id === "vectors") {
-              drawVectorIcon(control);
+            if (control.id === "collision") {
+              drawCollisionIcon(control);
             } else {
               drawResetIcon(control);
             }
@@ -578,16 +729,48 @@
           });
         }
 
+        function updateCanvasCursor(point, hitControl) {
+          if (dragState.letter) {
+            canvas.style.cursor = "grabbing";
+            return;
+          }
+
+          if (hitControl) {
+            canvas.style.cursor = "pointer";
+            return;
+          }
+
+          if (!cursorCollidable && point && getLetterAt(point.x, point.y)) {
+            canvas.style.cursor = "grab";
+            return;
+          }
+
+          canvas.style.cursor = cursorCollidable ? "crosshair" : "default";
+        }
+
         function updateControlHover(point) {
           const hitControl = getHitControl(point.x, point.y);
           controls.hover = hitControl ? hitControl.id : null;
-          canvas.style.cursor = hitControl ? "pointer" : "crosshair";
+          updateCanvasCursor(point, hitControl);
 
           return hitControl;
         }
 
         function handlePointerMove(event) {
           const point = getCanvasPoint(event);
+
+          if (dragState.letter) {
+            if (event.pointerId !== dragState.pointerId) {
+              return;
+            }
+
+            event.preventDefault();
+            updatePointer(event, point);
+            updateDraggedTarget(point);
+            updateCanvasCursor(point, null);
+            return;
+          }
+
           const hitControl = updateControlHover(point);
 
           if (hitControl) {
@@ -605,30 +788,68 @@
           if (hitControl) {
             event.preventDefault();
             controls.pressed = hitControl.id;
+            endLetterDrag(event);
             resetPointer();
 
-            if (hitControl.id === "vectors") {
-              showVelocityVectors = !showVelocityVectors;
+            if (hitControl.id === "collision") {
+              cursorCollidable = !cursorCollidable;
             } else {
               resetCanvas();
             }
 
+            updateCanvasCursor(point, hitControl);
             return;
           }
 
           controls.pressed = null;
           updatePointer(event, point);
+
+          if (!cursorCollidable) {
+            const letter = getLetterAt(point.x, point.y);
+
+            if (letter) {
+              event.preventDefault();
+              beginLetterDrag(event, letter, point);
+              updateCanvasCursor(point, null);
+            }
+          }
         }
 
-        function handlePointerUp() {
+        function handlePointerUp(event) {
+          if (dragState.letter && event.pointerId === dragState.pointerId) {
+            const point = getCanvasPoint(event);
+            const dx = point.x - dragState.lastX;
+            const dy = point.y - dragState.lastY;
+
+            event.preventDefault();
+            updatePointer(event, point);
+
+            if (dx * dx + dy * dy > 0.25) {
+              updateDraggedTarget(point);
+            }
+
+            endLetterDrag(event, true);
+            updateCanvasCursor(point, null);
+          }
+
           controls.pressed = null;
         }
 
         function handlePointerLeave() {
           controls.hover = null;
           controls.pressed = null;
-          canvas.style.cursor = "crosshair";
+          updateCanvasCursor(null, null);
+
+          if (dragState.letter) {
+            return;
+          }
+
           resetPointer();
+        }
+
+        function handlePointerCancel(event) {
+          endLetterDrag(event);
+          handlePointerLeave();
         }
 
         function render() {
@@ -646,10 +867,6 @@
             context.fillText(letter.character, 0, 0);
             context.restore();
           });
-
-          if (showVelocityVectors) {
-            drawVelocityVectors();
-          }
 
           drawControls();
         }
@@ -672,7 +889,7 @@
         canvas.addEventListener("pointermove", handlePointerMove);
         canvas.addEventListener("pointerdown", handlePointerDown);
         canvas.addEventListener("pointerup", handlePointerUp);
-        canvas.addEventListener("pointercancel", handlePointerLeave);
+        canvas.addEventListener("pointercancel", handlePointerCancel);
         canvas.addEventListener("pointerleave", handlePointerLeave);
         window.addEventListener("resize", resize);
         resize();
@@ -684,7 +901,7 @@
     <canvas
       id="stage"
       role="application"
-      aria-label="Interactive canvas spelling Joey Tan, Software Engineer, with canvas-drawn controls for velocity vectors and reset"
+      aria-label="Interactive canvas spelling Joey Tan, Software Engineer, with canvas-drawn controls for cursor collision and reset"
     ></canvas>
   </body>
 </html>
