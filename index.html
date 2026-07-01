@@ -54,6 +54,10 @@
           radius: 48,
           seen: false,
         };
+        const controls = {
+          hover: null,
+          pressed: null,
+        };
 
         let width = 0;
         let height = 0;
@@ -61,6 +65,7 @@
         let letters = [];
         let lastFrame = performance.now();
         let palette = getPalette();
+        let showVelocityVectors = false;
 
         const random = (min, max) => min + Math.random() * (max - min);
         const clamp = (value, min, max) =>
@@ -69,6 +74,15 @@
           `${weight} ${size}px ${fontFamily}`;
         const maxLetterSpeed = () =>
           clamp(Math.min(width, height) * 1.12, 420, 760);
+
+        function getCanvasPoint(event) {
+          const rect = canvas.getBoundingClientRect();
+
+          return {
+            x: event.clientX - rect.left,
+            y: event.clientY - rect.top,
+          };
+        }
 
         function getPalette() {
           return { background: "#fff", text: "#000" };
@@ -159,11 +173,30 @@
           });
         }
 
-        function updatePointer(event) {
-          const rect = canvas.getBoundingClientRect();
+        function resetPointer() {
+          pointer.active = false;
+          pointer.x = 0;
+          pointer.y = 0;
+          pointer.vx = 0;
+          pointer.vy = 0;
+          pointer.lastX = 0;
+          pointer.lastY = 0;
+          pointer.lastTime = 0;
+          pointer.seen = false;
+        }
+
+        function resetCanvas() {
+          showVelocityVectors = false;
+          controls.pressed = null;
+          resetPointer();
+          palette = getPalette();
+          seedLetters();
+          lastFrame = performance.now();
+        }
+
+        function updatePointer(event, point = getCanvasPoint(event)) {
           const now = performance.now();
-          const x = event.clientX - rect.left;
-          const y = event.clientY - rect.top;
+          const { x, y } = point;
 
           if (pointer.seen) {
             const elapsed = Math.max((now - pointer.lastTime) / 1000, 1 / 120);
@@ -354,6 +387,250 @@
           pointer.vy *= Math.pow(0.84, dt * 60);
         }
 
+        function getControlRects() {
+          const size = clamp(Math.min(width, height) * 0.052, 36, 44);
+          const margin = clamp(Math.min(width, height) * 0.018, 12, 18);
+          const gap = 8;
+          const top = margin;
+          const resetX = width - margin - size;
+
+          return [
+            {
+              id: "vectors",
+              x: resetX - gap - size,
+              y: top,
+              width: size,
+              height: size,
+            },
+            {
+              id: "reset",
+              x: resetX,
+              y: top,
+              width: size,
+              height: size,
+            },
+          ];
+        }
+
+        function getHitControl(x, y) {
+          return getControlRects().find(
+            (control) =>
+              x >= control.x &&
+              x <= control.x + control.width &&
+              y >= control.y &&
+              y <= control.y + control.height
+          );
+        }
+
+        function roundedRect(x, y, widthValue, heightValue, radius) {
+          const corner = Math.min(radius, widthValue / 2, heightValue / 2);
+
+          context.beginPath();
+          context.moveTo(x + corner, y);
+          context.lineTo(x + widthValue - corner, y);
+          context.quadraticCurveTo(x + widthValue, y, x + widthValue, y + corner);
+          context.lineTo(x + widthValue, y + heightValue - corner);
+          context.quadraticCurveTo(
+            x + widthValue,
+            y + heightValue,
+            x + widthValue - corner,
+            y + heightValue
+          );
+          context.lineTo(x + corner, y + heightValue);
+          context.quadraticCurveTo(x, y + heightValue, x, y + heightValue - corner);
+          context.lineTo(x, y + corner);
+          context.quadraticCurveTo(x, y, x + corner, y);
+          context.closePath();
+        }
+
+        function drawVectorIcon(control) {
+          const left = control.x + control.width * 0.28;
+          const top = control.y + control.height * 0.68;
+          const right = control.x + control.width * 0.72;
+          const bottom = control.y + control.height * 0.32;
+          const head = control.width * 0.14;
+          const angle = Math.atan2(bottom - top, right - left);
+
+          context.beginPath();
+          context.moveTo(left, top);
+          context.lineTo(right, bottom);
+          context.stroke();
+
+          context.beginPath();
+          context.moveTo(right, bottom);
+          context.lineTo(
+            right - Math.cos(angle - 0.55) * head,
+            bottom - Math.sin(angle - 0.55) * head
+          );
+          context.moveTo(right, bottom);
+          context.lineTo(
+            right - Math.cos(angle + 0.55) * head,
+            bottom - Math.sin(angle + 0.55) * head
+          );
+          context.stroke();
+
+          context.beginPath();
+          context.arc(left, top, control.width * 0.045, 0, Math.PI * 2);
+          context.fill();
+        }
+
+        function drawResetIcon(control) {
+          const centerX = control.x + control.width / 2;
+          const centerY = control.y + control.height / 2;
+          const radius = control.width * 0.21;
+          const start = -Math.PI * 0.18;
+          const end = Math.PI * 1.25;
+          const arrowX = centerX + Math.cos(start) * radius;
+          const arrowY = centerY + Math.sin(start) * radius;
+
+          context.beginPath();
+          context.arc(centerX, centerY, radius, start, end, false);
+          context.stroke();
+
+          context.beginPath();
+          context.moveTo(arrowX, arrowY);
+          context.lineTo(arrowX - control.width * 0.02, arrowY - control.width * 0.17);
+          context.moveTo(arrowX, arrowY);
+          context.lineTo(arrowX - control.width * 0.16, arrowY - control.width * 0.02);
+          context.stroke();
+        }
+
+        function drawVelocityVectors() {
+          const maxSpeed = maxLetterSpeed();
+          const maxLength = clamp(Math.min(width, height) * 0.13, 34, 86);
+
+          context.save();
+          context.strokeStyle = "rgba(0, 100, 190, 0.72)";
+          context.fillStyle = "rgba(0, 100, 190, 0.72)";
+          context.lineWidth = 1.6;
+          context.lineCap = "round";
+          context.lineJoin = "round";
+
+          letters.forEach((letter) => {
+            const speed = Math.hypot(letter.vx, letter.vy);
+
+            if (speed < 4) {
+              return;
+            }
+
+            const scale = (clamp(speed / maxSpeed, 0.08, 1) * maxLength) / speed;
+            const endX = letter.x + letter.vx * scale;
+            const endY = letter.y + letter.vy * scale;
+            const angle = Math.atan2(endY - letter.y, endX - letter.x);
+            const head = clamp(letter.radius * 0.28, 4, 8);
+
+            context.beginPath();
+            context.moveTo(letter.x, letter.y);
+            context.lineTo(endX, endY);
+            context.stroke();
+
+            context.beginPath();
+            context.moveTo(endX, endY);
+            context.lineTo(
+              endX - Math.cos(angle - 0.52) * head,
+              endY - Math.sin(angle - 0.52) * head
+            );
+            context.moveTo(endX, endY);
+            context.lineTo(
+              endX - Math.cos(angle + 0.52) * head,
+              endY - Math.sin(angle + 0.52) * head
+            );
+            context.stroke();
+          });
+
+          context.restore();
+        }
+
+        function drawControls() {
+          // DOM-less controls: buttons are drawn on the canvas and hit-tested here.
+          getControlRects().forEach((control) => {
+            const isActive = control.id === "vectors" && showVelocityVectors;
+            const isHovered = controls.hover === control.id;
+            const isPressed = controls.pressed === control.id;
+            const offset = isPressed ? 1 : 0;
+
+            context.save();
+            context.translate(offset, offset);
+            roundedRect(control.x, control.y, control.width, control.height, 8);
+            context.fillStyle = isActive
+              ? "#111"
+              : isHovered
+                ? "rgba(246, 246, 246, 0.96)"
+                : "rgba(255, 255, 255, 0.88)";
+            context.strokeStyle = isActive ? "#111" : "rgba(0, 0, 0, 0.74)";
+            context.lineWidth = 1;
+            context.fill();
+            context.stroke();
+
+            context.strokeStyle = isActive ? "#fff" : "#111";
+            context.fillStyle = isActive ? "#fff" : "#111";
+            context.lineWidth = 1.9;
+            context.lineCap = "round";
+            context.lineJoin = "round";
+
+            if (control.id === "vectors") {
+              drawVectorIcon(control);
+            } else {
+              drawResetIcon(control);
+            }
+
+            context.restore();
+          });
+        }
+
+        function updateControlHover(point) {
+          const hitControl = getHitControl(point.x, point.y);
+          controls.hover = hitControl ? hitControl.id : null;
+          canvas.style.cursor = hitControl ? "pointer" : "crosshair";
+
+          return hitControl;
+        }
+
+        function handlePointerMove(event) {
+          const point = getCanvasPoint(event);
+          const hitControl = updateControlHover(point);
+
+          if (hitControl) {
+            resetPointer();
+            return;
+          }
+
+          updatePointer(event, point);
+        }
+
+        function handlePointerDown(event) {
+          const point = getCanvasPoint(event);
+          const hitControl = updateControlHover(point);
+
+          if (hitControl) {
+            event.preventDefault();
+            controls.pressed = hitControl.id;
+            resetPointer();
+
+            if (hitControl.id === "vectors") {
+              showVelocityVectors = !showVelocityVectors;
+            } else {
+              resetCanvas();
+            }
+
+            return;
+          }
+
+          controls.pressed = null;
+          updatePointer(event, point);
+        }
+
+        function handlePointerUp() {
+          controls.pressed = null;
+        }
+
+        function handlePointerLeave() {
+          controls.hover = null;
+          controls.pressed = null;
+          canvas.style.cursor = "crosshair";
+          resetPointer();
+        }
+
         function render() {
           context.fillStyle = palette.background;
           context.fillRect(0, 0, width, height);
@@ -369,6 +646,12 @@
             context.fillText(letter.character, 0, 0);
             context.restore();
           });
+
+          if (showVelocityVectors) {
+            drawVelocityVectors();
+          }
+
+          drawControls();
         }
 
         function frame(now) {
@@ -386,14 +669,11 @@
           requestAnimationFrame(frame);
         }
 
-        canvas.addEventListener("pointermove", updatePointer);
-        canvas.addEventListener("pointerdown", updatePointer);
-        canvas.addEventListener("pointerleave", () => {
-          pointer.active = false;
-          pointer.seen = false;
-          pointer.vx = 0;
-          pointer.vy = 0;
-        });
+        canvas.addEventListener("pointermove", handlePointerMove);
+        canvas.addEventListener("pointerdown", handlePointerDown);
+        canvas.addEventListener("pointerup", handlePointerUp);
+        canvas.addEventListener("pointercancel", handlePointerLeave);
+        canvas.addEventListener("pointerleave", handlePointerLeave);
         window.addEventListener("resize", resize);
         resize();
         requestAnimationFrame(frame);
@@ -403,8 +683,8 @@
   <body>
     <canvas
       id="stage"
-      role="img"
-      aria-label="Joey Tan, Software Engineer"
+      role="application"
+      aria-label="Interactive canvas spelling Joey Tan, Software Engineer, with canvas-drawn controls for velocity vectors and reset"
     ></canvas>
   </body>
 </html>
