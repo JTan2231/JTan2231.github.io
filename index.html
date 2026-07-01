@@ -3,20 +3,408 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>/home/joey/</title>
+    <meta
+      name="description"
+      content="Joey Tan, Software Engineer"
+    />
+    <title>Joey Tan - Software Engineer</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #fff;
+      }
+
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+        background: #fff;
+        cursor: crosshair;
+        touch-action: none;
+      }
+    </style>
+    <script>
+      window.addEventListener("DOMContentLoaded", () => {
+        "use strict";
+
+        const canvas = document.getElementById("stage");
+        const context = canvas.getContext("2d");
+        const text = [
+          { value: "Joey Tan", weight: 500, scale: 0.132 },
+          { value: "Software Engineer", weight: 400, scale: 0.061 },
+        ];
+        const fontFamily = '"Times New Roman", Times, serif';
+        const pointer = {
+          active: false,
+          x: 0,
+          y: 0,
+          vx: 0,
+          vy: 0,
+          lastX: 0,
+          lastY: 0,
+          lastTime: 0,
+          radius: 48,
+          seen: false,
+        };
+
+        let width = 0;
+        let height = 0;
+        let dpr = 1;
+        let letters = [];
+        let lastFrame = performance.now();
+        let palette = getPalette();
+
+        const random = (min, max) => min + Math.random() * (max - min);
+        const clamp = (value, min, max) =>
+          Math.max(min, Math.min(max, value));
+        const font = (size, weight) =>
+          `${weight} ${size}px ${fontFamily}`;
+        const maxLetterSpeed = () =>
+          clamp(Math.min(width, height) * 1.12, 420, 760);
+
+        function getPalette() {
+          return { background: "#fff", text: "#000" };
+        }
+
+        function resize() {
+          width = window.innerWidth;
+          height = window.innerHeight;
+          dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+          canvas.width = Math.floor(width * dpr);
+          canvas.height = Math.floor(height * dpr);
+          canvas.style.width = `${width}px`;
+          canvas.style.height = `${height}px`;
+          context.setTransform(dpr, 0, 0, dpr, 0, 0);
+          pointer.radius = clamp(Math.min(width, height) * 0.07, 28, 58);
+          palette = getPalette();
+          seedLetters();
+        }
+
+        function resolveLineSize(line, targetWidth, shortSide) {
+          let size = clamp(shortSide * line.scale, 24, line.scale > 0.1 ? 118 : 58);
+          context.font = font(size, line.weight);
+
+          const measuredWidth = context.measureText(line.value).width;
+          if (measuredWidth > targetWidth) {
+            size *= targetWidth / measuredWidth;
+          }
+
+          return size;
+        }
+
+        function seedLetters() {
+          const shortSide = Math.min(width, height);
+          const targetWidth = width * 0.86;
+          const lineSpecs = text.map((line) => ({
+            ...line,
+            size: resolveLineSize(line, targetWidth, shortSide),
+          }));
+          const gap = clamp(shortSide * 0.055, 18, 56);
+          const totalHeight = lineSpecs[0].size + gap + lineSpecs[1].size;
+          const startY = height / 2 - totalHeight / 2;
+
+          letters = [];
+
+          lineSpecs.forEach((line, lineIndex) => {
+            context.font = font(line.size, line.weight);
+
+            const widths = [...line.value].map((character) =>
+              context.measureText(character).width
+            );
+            const lineWidth = widths.reduce((sum, value) => sum + value, 0);
+            let x = width / 2 - lineWidth / 2;
+            const y =
+              startY +
+              (lineIndex === 0 ? line.size / 2 : lineSpecs[0].size + gap + line.size / 2);
+
+            [...line.value].forEach((character, index) => {
+              const characterWidth = widths[index];
+              if (character === " ") {
+                x += characterWidth;
+                return;
+              }
+
+              const measurement = context.measureText(character);
+              const glyphHeight =
+                measurement.actualBoundingBoxAscent +
+                  measurement.actualBoundingBoxDescent || line.size;
+              const radius = Math.max(
+                7,
+                Math.max(characterWidth * 0.52, glyphHeight * 0.34)
+              );
+              letters.push({
+                character,
+                x: x + characterWidth / 2,
+                y,
+                vx: 0,
+                vy: 0,
+                radius,
+                mass: radius * radius,
+                size: line.size,
+                weight: line.weight,
+                angle: 0,
+                spin: 0,
+              });
+
+              x += characterWidth;
+            });
+          });
+        }
+
+        function updatePointer(event) {
+          const rect = canvas.getBoundingClientRect();
+          const now = performance.now();
+          const x = event.clientX - rect.left;
+          const y = event.clientY - rect.top;
+
+          if (pointer.seen) {
+            const elapsed = Math.max((now - pointer.lastTime) / 1000, 1 / 120);
+            const nextVx = (x - pointer.lastX) / elapsed;
+            const nextVy = (y - pointer.lastY) / elapsed;
+            pointer.vx = pointer.vx * 0.52 + nextVx * 0.48;
+            pointer.vy = pointer.vy * 0.52 + nextVy * 0.48;
+          }
+
+          pointer.active = true;
+          pointer.seen = true;
+          pointer.x = x;
+          pointer.y = y;
+          pointer.lastX = x;
+          pointer.lastY = y;
+          pointer.lastTime = now;
+        }
+
+        function collideWithWalls(letter) {
+          const bounce = 0.86;
+
+          if (letter.x - letter.radius < 0) {
+            letter.x = letter.radius;
+            letter.vx = Math.abs(letter.vx) * bounce;
+            letter.spin += letter.vy * 0.002;
+          } else if (letter.x + letter.radius > width) {
+            letter.x = width - letter.radius;
+            letter.vx = -Math.abs(letter.vx) * bounce;
+            letter.spin -= letter.vy * 0.002;
+          }
+
+          if (letter.y - letter.radius < 0) {
+            letter.y = letter.radius;
+            letter.vy = Math.abs(letter.vy) * bounce;
+            letter.spin -= letter.vx * 0.002;
+          } else if (letter.y + letter.radius > height) {
+            letter.y = height - letter.radius;
+            letter.vy = -Math.abs(letter.vy) * bounce;
+            letter.spin += letter.vx * 0.002;
+          }
+        }
+
+        function collideWithPointer(letter) {
+          if (!pointer.active) {
+            return;
+          }
+
+          const dx = letter.x - pointer.x;
+          const dy = letter.y - pointer.y;
+          const minDistance = letter.radius + pointer.radius;
+          const distanceSquared = dx * dx + dy * dy;
+
+          if (distanceSquared >= minDistance * minDistance) {
+            return;
+          }
+
+          const distance = Math.sqrt(distanceSquared) || 0.0001;
+          const nx = dx / distance;
+          const ny = dy / distance;
+          const overlap = minDistance - distance;
+          const pointerVelocity = pointer.vx * nx + pointer.vy * ny;
+          const letterVelocity = letter.vx * nx + letter.vy * ny;
+          const separationImpulse = overlap * 3.2 + 12;
+          const malletImpulse = Math.max(0, pointerVelocity) * 0.56;
+
+          letter.x += nx * overlap;
+          letter.y += ny * overlap;
+
+          if (letterVelocity < 0) {
+            letter.vx -= nx * letterVelocity * 1.9;
+            letter.vy -= ny * letterVelocity * 1.9;
+          }
+
+          letter.vx += nx * (separationImpulse + malletImpulse);
+          letter.vy += ny * (separationImpulse + malletImpulse);
+          letter.vx += pointer.vx * 0.12;
+          letter.vy += pointer.vy * 0.12;
+          letter.spin += (pointer.vx * -ny + pointer.vy * nx) * 0.004;
+        }
+
+        function collideLetters(a, b) {
+          let dx = b.x - a.x;
+          let dy = b.y - a.y;
+          const minDistance = a.radius + b.radius;
+          let distanceSquared = dx * dx + dy * dy;
+
+          if (distanceSquared >= minDistance * minDistance) {
+            return;
+          }
+
+          if (distanceSquared === 0) {
+            const angle = random(0, Math.PI * 2);
+            dx = Math.cos(angle) * 0.01;
+            dy = Math.sin(angle) * 0.01;
+            distanceSquared = dx * dx + dy * dy;
+          }
+
+          const rvx = b.vx - a.vx;
+          const rvy = b.vy - a.vy;
+          const distance = Math.sqrt(distanceSquared);
+          const nx = dx / distance;
+          const ny = dy / distance;
+          const velocityAlongNormal = rvx * nx + rvy * ny;
+
+          if (velocityAlongNormal >= 0) {
+            return;
+          }
+
+          const overlap = minDistance - distance;
+          const totalMass = a.mass + b.mass;
+
+          a.x -= nx * overlap * (b.mass / totalMass);
+          a.y -= ny * overlap * (b.mass / totalMass);
+          b.x += nx * overlap * (a.mass / totalMass);
+          b.y += ny * overlap * (a.mass / totalMass);
+
+          const restitution = 0.88;
+          const impulse =
+            (-(1 + restitution) * velocityAlongNormal) /
+            (1 / a.mass + 1 / b.mass);
+          const impulseX = impulse * nx;
+          const impulseY = impulse * ny;
+          const tangentVelocity = rvx * -ny + rvy * nx;
+
+          a.vx -= impulseX / a.mass;
+          a.vy -= impulseY / a.mass;
+          b.vx += impulseX / b.mass;
+          b.vy += impulseY / b.mass;
+          a.spin -= tangentVelocity * 0.002;
+          b.spin += tangentVelocity * 0.002;
+        }
+
+        function limitVelocity(letter) {
+          const maxSpeed = maxLetterSpeed();
+          const speed = Math.hypot(letter.vx, letter.vy);
+
+          if (speed > maxSpeed) {
+            const scale = maxSpeed / speed;
+            letter.vx *= scale;
+            letter.vy *= scale;
+          }
+
+          letter.spin = clamp(letter.spin, -4.6, 4.6);
+        }
+
+        function applyFriction(letter, dt) {
+          const speed = Math.hypot(letter.vx, letter.vy);
+          if (speed === 0) {
+            return;
+          }
+
+          const speedRatio = clamp(speed / maxLetterSpeed(), 0, 1);
+          const friction = 0.025 + 2.25 * Math.pow(speedRatio, 0.82);
+          const drag = Math.exp(-friction * dt);
+
+          letter.vx *= drag;
+          letter.vy *= drag;
+        }
+
+        function step(dt) {
+          const spinDrag = Math.pow(0.993, dt * 60);
+
+          letters.forEach((letter) => {
+            applyFriction(letter, dt);
+            letter.spin *= spinDrag;
+            letter.x += letter.vx * dt;
+            letter.y += letter.vy * dt;
+            letter.angle += letter.spin * dt;
+            collideWithWalls(letter);
+            collideWithPointer(letter);
+            limitVelocity(letter);
+          });
+
+          for (let pass = 0; pass < 3; pass += 1) {
+            for (let index = 0; index < letters.length; index += 1) {
+              for (let other = index + 1; other < letters.length; other += 1) {
+                collideLetters(letters[index], letters[other]);
+              }
+            }
+          }
+
+          letters.forEach((letter) => {
+            collideWithWalls(letter);
+            limitVelocity(letter);
+          });
+
+          pointer.vx *= Math.pow(0.84, dt * 60);
+          pointer.vy *= Math.pow(0.84, dt * 60);
+        }
+
+        function render() {
+          context.fillStyle = palette.background;
+          context.fillRect(0, 0, width, height);
+          context.textAlign = "center";
+          context.textBaseline = "middle";
+          context.fillStyle = palette.text;
+
+          letters.forEach((letter) => {
+            context.save();
+            context.translate(letter.x, letter.y);
+            context.rotate(letter.angle);
+            context.font = font(letter.size, letter.weight);
+            context.fillText(letter.character, 0, 0);
+            context.restore();
+          });
+        }
+
+        function frame(now) {
+          const elapsed = Math.min((now - lastFrame) / 1000, 0.05);
+          const steps = Math.max(1, Math.ceil(elapsed / (1 / 120)));
+          const dt = elapsed / steps;
+
+          lastFrame = now;
+
+          for (let index = 0; index < steps; index += 1) {
+            step(dt);
+          }
+
+          render();
+          requestAnimationFrame(frame);
+        }
+
+        canvas.addEventListener("pointermove", updatePointer);
+        canvas.addEventListener("pointerdown", updatePointer);
+        canvas.addEventListener("pointerleave", () => {
+          pointer.active = false;
+          pointer.seen = false;
+          pointer.vx = 0;
+          pointer.vy = 0;
+        });
+        window.addEventListener("resize", resize);
+        resize();
+        requestAnimationFrame(frame);
+      });
+    </script>
   </head>
   <body>
-    <div>Software Engineer</div>
-    <div>Contact<div>
-    <ul>
-      <li><a href="mailto:j.tan2231@gmail.com">j.tan2231@gmail.com</a></li>
-      <li><a href="https://github.com/JTan2231">GitHub</a></li>
-      <li><a href="https://www.linkedin.com/in/joseph-tan-478aa5186/">LinkedIn</a></li>
-    </ul>
-    <div>Projects</div>
-    <ul>
-      <li><a href="https://stet.ink">Stet</a></li>
-      <li><a href="https://apps.apple.com/us/app/open-lector/id6759466433">Lector</a></li>
-    </ul>
+    <canvas
+      id="stage"
+      role="img"
+      aria-label="Joey Tan, Software Engineer"
+    ></canvas>
   </body>
 </html>
