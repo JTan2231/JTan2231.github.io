@@ -39,27 +39,39 @@
       }
 
       main {
-        width: min(100% - 48px, 560px);
+        width: min(100% - 48px, 600px);
         transform: translateY(-7vh);
         text-align: center;
       }
 
       h1 {
-        margin: 0 0 28px;
+        margin: 0 0 10px;
         font-size: 24px;
         font-weight: 500;
         letter-spacing: -0.02em;
       }
 
+      .blurb {
+        margin: 0 0 32px;
+        color: #5f5f5b;
+        font-size: 15px;
+        line-height: 1.5;
+      }
+
       ul {
         display: grid;
         gap: 10px;
-        margin: 0;
+        width: min(100%, 500px);
+        margin: 0 auto;
         padding: 0;
         list-style: none;
       }
 
       li {
+        display: grid;
+        grid-template-columns: 72px minmax(0, 1fr);
+        column-gap: 18px;
+        text-align: left;
         font-size: 15px;
         line-height: 1.5;
       }
@@ -83,19 +95,26 @@
 
       .subtitle {
         color: #a5a5a2;
+        text-align: right;
       }
 
       @media (max-width: 520px) {
         main {
-          width: min(100% - 36px, 560px);
+          width: min(100% - 36px, 600px);
         }
 
         h1 {
-          margin-bottom: 24px;
           font-size: 22px;
         }
 
+        .blurb {
+          margin-bottom: 28px;
+          font-size: 14px;
+        }
+
         li {
+          grid-template-columns: 64px minmax(0, 1fr);
+          column-gap: 14px;
           font-size: 14px;
         }
       }
@@ -104,14 +123,18 @@
   <body>
     <main aria-labelledby="name">
       <h1 id="name">Joey Tan</h1>
+      <p class="blurb">
+        Software Engineer.<br />
+        I enjoy bold architectural bets and enduring designs.
+      </p>
       <ul aria-label="Projects">
         <li>
           <a href="https://github.com/JTan2231/cell" draggable="false">Cell</a>
-          <span class="subtitle"> — Multi-agent coordination and knowledge infrastructure</span>
+          <span class="subtitle">Multi-agent coordination and knowledge infrastructure</span>
         </li>
         <li>
           <a href="https://wrought.joeytan.dev" draggable="false">Wrought</a>
-          <span class="subtitle"> — Generative narrative engine</span>
+          <span class="subtitle">Generative narrative engine</span>
         </li>
       </ul>
     </main>
