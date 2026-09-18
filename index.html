@@ -3,140 +3,50 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta
-      name="description"
-      content="Joey Tan"
-    />
+    <meta name="description" content="Joey Tan — Software Engineer." />
+    <meta name="color-scheme" content="light dark" />
     <title>Joey Tan</title>
-    <style>
-      :root {
-        color-scheme: light;
-        font-family: Arial, Helvetica, sans-serif;
-        background: #fafafa;
-        color: #1b1b1a;
-      }
-
-      * {
-        box-sizing: border-box;
-        -webkit-user-select: none;
-        user-select: none;
-      }
-
-      html,
-      body {
-        width: 100%;
-        min-height: 100%;
-        margin: 0;
-      }
-
-      body {
-        min-height: 100vh;
-        min-height: 100svh;
-        display: grid;
-        place-items: center;
-        overflow: hidden;
-        background: #fafafa;
-      }
-
-      main {
-        width: min(100% - 48px, 600px);
-        transform: translateY(-7vh);
-        text-align: center;
-      }
-
-      h1 {
-        margin: 0 0 10px;
-        font-size: 24px;
-        font-weight: 500;
-        letter-spacing: -0.02em;
-      }
-
-      .blurb {
-        margin: 0 0 32px;
-        color: #5f5f5b;
-        font-size: 15px;
-        line-height: 1.5;
-      }
-
-      ul {
-        display: grid;
-        gap: 10px;
-        width: min(100%, 500px);
-        margin: 0 auto;
-        padding: 0;
-        list-style: none;
-      }
-
-      li {
-        display: grid;
-        grid-template-columns: 72px minmax(0, 1fr);
-        column-gap: 18px;
-        text-align: left;
-        font-size: 15px;
-        line-height: 1.5;
-      }
-
-      a {
-        color: inherit;
-        text-decoration: none;
-      }
-
-      a:hover,
-      a:active,
-      a:visited {
-        color: inherit;
-        text-decoration: none;
-      }
-
-      a:focus-visible {
-        outline: 1px solid #1b1b1a;
-        outline-offset: 4px;
-      }
-
-      .subtitle {
-        color: #a5a5a2;
-        text-align: right;
-      }
-
-      @media (max-width: 520px) {
-        main {
-          width: min(100% - 36px, 600px);
-        }
-
-        h1 {
-          font-size: 22px;
-        }
-
-        .blurb {
-          margin-bottom: 28px;
-          font-size: 14px;
-        }
-
-        li {
-          grid-template-columns: 64px minmax(0, 1fr);
-          column-gap: 14px;
-          font-size: 14px;
-        }
-      }
-    </style>
+    <link rel="stylesheet" href="/assets/home.css" />
+    <script src="/assets/home.js" defer></script>
   </head>
   <body>
-    <main aria-labelledby="name">
-      <h1 id="name">Joey Tan</h1>
-      <p class="blurb">
-        Software Engineer.<br />
-        I enjoy bold architectural bets and enduring designs.
-      </p>
-      <ul aria-label="Projects">
-        <li>
-          <a href="https://github.com/JTan2231/cell" draggable="false">Cell</a>
-          <span class="subtitle">Multi-agent coordination and knowledge infrastructure</span>
-        </li>
-        <li>
-          <a href="https://wrought.joeytan.dev" draggable="false">Wrought</a>
-          <span class="subtitle">Generative narrative engine</span>
-        </li>
-      </ul>
-    </main>
+    <div class="site" data-open="false">
+      <main aria-labelledby="name">
+        <h1 id="name">Joey Tan</h1>
+        <p class="blurb">
+          Software Engineer.<br />
+          I enjoy bold architectural bets and enduring designs.
+        </p>
+        <ul class="projects" aria-label="Projects">
+          <li>
+            <a class="project-trigger" href="https://github.com/JTan2231/cell"
+              data-project="cell"
+              data-description="An exploration of multi-agent coordination and knowledge infrastructure. Independent agents, shared context, and systems designed to carry knowledge forward.">
+              <span class="project-name">Cell</span>
+              <span class="subtitle">Multi-agent coordination and knowledge infrastructure</span>
+            </a>
+          </li>
+          <li>
+            <a class="project-trigger" href="https://wrought.joeytan.dev"
+              data-project="wrought"
+              data-description="A generative narrative engine. An exploration of how authored structure and generated material can come together to create stories that unfold through interaction.">
+              <span class="project-name">Wrought</span>
+              <span class="subtitle">Generative narrative engine</span>
+            </a>
+          </li>
+        </ul>
+      </main>
+      <div class="projection-slot">
+        <section class="projection" id="project-display" aria-labelledby="project-title" hidden>
+          <div class="screen-surface">
+            <canvas class="screen-canvas" aria-hidden="true" hidden></canvas>
+            <h2 class="project-title" id="project-title"><a class="project-link"></a></h2>
+            <p class="project-description"></p>
+          </div>
+          <button class="projection-close" type="button" aria-label="Close project description">Close</button>
+        </section>
+      </div>
+      <span class="sr-only" role="status" aria-live="polite" id="project-status"></span>
+    </div>
   </body>
 </html>
