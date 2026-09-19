@@ -105,7 +105,9 @@
 
   function createRenderer() {
     const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: false, antialias: true });
-    if (!gl || !textContext) return null;
+    // Safari can return a context whose drawing buffer could not be allocated.
+    if (!gl || gl.isContextLost() || !textContext ||
+        gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) return null;
     const shaders = [];
     const buffers = [];
     let program;
@@ -168,15 +170,17 @@
           const ratio = Math.min(devicePixelRatio || 1, 2);
           const pixelWidth = Math.round(width * ratio);
           const pixelHeight = Math.round(height * ratio);
-          if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
-            canvas.width = pixelWidth;
-            canvas.height = pixelHeight;
-          }
+          if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
+          if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
+          if (gl.isContextLost() ||
+              gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) return false;
           gl.viewport(0, 0, canvas.width, canvas.height);
           gl.useProgram(program);
           set('aspect', width / height);
+          return true;
         },
         paint() {
+          if (gl.isContextLost()) return false;
           gl.clearColor(0, 0, 0, 0);
           gl.clear(gl.COLOR_BUFFER_BIT);
           gl.useProgram(program);
@@ -191,6 +195,7 @@
           set('base', base);
           set('letterGrit', effects.letterGrit);
           gl.drawArrays(gl.TRIANGLES, 0, positions.length / 2);
+          return !gl.isContextLost();
         }
       };
     } catch (error) {
@@ -273,8 +278,10 @@
     const width = surface.clientWidth;
     const height = surface.clientHeight;
     if (!width || !height) return;
-    renderer.resize(width, height);
-    renderer.paint();
+    if (!renderer.resize(width, height) || !renderer.paint()) {
+      useTextDisplay();
+      return;
+    }
     const points = [[titleArea.left, titleArea.top], [titleArea.right, titleArea.top],
       [titleArea.left, titleArea.bottom], [titleArea.right, titleArea.bottom]]
       .map(([x, y]) => projectPoint(x / 960, y / 820, width, height));
@@ -293,6 +300,13 @@
     site.dataset.effectsPaused = 'true';
   }
 
+  function useTextDisplay() {
+    stopEffects();
+    renderer = null;
+    draw();
+    startEffects();
+  }
+
   function startEffects() {
     stopEffects();
     if (!active || reducedMotion.matches || document.hidden || !inView) return;
@@ -305,7 +319,7 @@
       if (delta >= 1000 / 30) {
         elapsed += Math.min(delta, 100) / 1000;
         lastFrame = now;
-        renderer.paint();
+        if (!renderer.paint()) { useTextDisplay(); return; }
       }
       frameId = requestAnimationFrame(frame);
     }
@@ -392,18 +406,8 @@
   reducedMotion.addEventListener('change', () => { reveal?.cancel(); draw(); startEffects(); });
   appearance.addEventListener('change', () => { buildText(); draw(); });
   document.addEventListener('visibilitychange', startEffects);
-  canvas.addEventListener('webglcontextlost', event => {
-    event.preventDefault();
-    stopEffects();
-    renderer = null;
-    draw();
-    startEffects();
-  });
-  canvas.addEventListener('webglcontextrestored', () => {
-    renderer = createRenderer();
-    buildText();
-    draw();
-    startEffects();
-  });
+  // Keep the readable CSS display for this page visit after a GPU failure.
+  // Recreating the same failing renderer can otherwise blink indefinitely.
+  canvas.addEventListener('webglcontextlost', useTextDisplay);
   stopEffects();
 })();
