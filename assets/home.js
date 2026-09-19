@@ -393,7 +393,6 @@
   }
 
   renderer = createRenderer();
-  panel.querySelector('.projection-close').addEventListener('click', () => close());
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && active) { event.preventDefault(); close(); }
   });

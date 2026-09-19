@@ -57,6 +57,7 @@ body {
 main { width: 100%; max-width: 440px; margin: auto; text-align: center; }
 h1 { margin: 0 0 10px; font-size: 24px; font-weight: 500; letter-spacing: -.02em; }
 .blurb { margin: 0 0 34px; color: var(--intro); font-size: 15px; line-height: 1.5; }
+#name, .blurb { -webkit-user-select: none; user-select: none; }
 .projects { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
 .projects li { position: relative; }
 .project-trigger {
@@ -133,19 +134,6 @@ a:focus-visible, button:focus-visible { outline: 1px solid var(--ink); outline-o
 .screen-canvas { display: block; width: 100%; height: 100%; }
 .is-rendered .project-title { position: absolute; margin: 0; min-width: 70px; min-height: 44px; font-size: 24px; }
 .is-rendered .project-link { display: block; width: 100%; min-height: 44px; color: transparent; text-decoration: none; }
-.is-rendered .project-link:hover { background: color-mix(in srgb, var(--phosphor) 5%, transparent); }
-.projection-close {
-  display: block;
-  margin: 0 11% 0 auto;
-  min-height: 44px;
-  border: 0;
-  padding: 10px 0;
-  color: var(--muted);
-  background: transparent;
-  font: 12px/1.4 Arial, Helvetica, sans-serif;
-  cursor: pointer;
-}
-.projection-close:hover { text-decoration: underline; text-underline-offset: 3px; }
 .sr-only, .is-rendered .project-description {
   position: absolute;
   width: 1px;
