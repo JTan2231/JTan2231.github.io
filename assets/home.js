@@ -3,9 +3,9 @@
 
   const site = document.querySelector('.site');
   const panel = document.getElementById('project-display');
-  const surface = panel.querySelector('.screen-surface');
-  const canvas = panel.querySelector('.screen-canvas');
-  const title = panel.querySelector('.project-title');
+  const surface = site.querySelector('.screen-surface');
+  const content = surface.querySelector('.screen-content');
+  const canvas = surface.querySelector('.screen-canvas');
   const link = panel.querySelector('.project-link');
   const description = panel.querySelector('.project-description');
   const status = document.getElementById('project-status');
@@ -15,10 +15,12 @@
   const effects = { curvature: .15, rolling: .85, static: .57, period: 6.5, wear: .8, letterGrit: .75 };
   const projects = new Map();
   const source = document.createElement('canvas');
-  source.width = 960;
-  source.height = 820;
   const textContext = source.getContext('2d');
-  const titleArea = { left: 140, top: 132, right: 400, bottom: 213 };
+  let controls = [];
+  let textRuns = [];
+  let screenWidth = 0;
+  let screenHeight = 0;
+  let revealStarted = null;
   let active = null;
   let renderer = null;
   let frameId = 0;
@@ -32,14 +34,14 @@
   const vertexShader = `
     attribute vec2 a_position;
     attribute vec2 a_uv;
-    uniform float u_bulge, u_aspect;
+    uniform float u_bulge;
     varying vec2 v_uv;
     void main() {
       float x = a_position.x;
       float y = a_position.y;
       float z = u_bulge * (2.0 - x*x - y*y);
       float distance = 3.7 - z;
-      gl_Position = vec4(x * 1.19 * 2.67 / u_aspect, y * 2.67, distance * .1, distance);
+      gl_Position = vec4(x * 3.4, y * 3.4, distance * .1, distance);
       v_uv = a_uv;
     }
   `;
@@ -47,6 +49,7 @@
  precision highp float;
  varying vec2 v_uv;
  uniform sampler2D u_texture;
+ uniform vec2 u_density;
  uniform float u_scan,u_time,u_roll,u_noise,u_period,u_tone,u_wear,u_base,u_letterGrit;
  float hash(vec2 p){vec3 q=fract(vec3(p.xyx)*.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}
  void main(){
@@ -59,38 +62,39 @@
    float band=exp(-dy*dy/.0064)*u_roll;
    float trailing=exp(-(dy-.065)*(dy-.065)/.0012)*u_roll;
    float tick=floor(u_time*16.0);
-   float rowNoise=hash(vec2(floor(v_uv.y*300.),tick));
+   float rowNoise=hash(vec2(floor(v_uv.y*300.*u_density.y),tick));
    float cycle=fract(u_time/4.8);
    float burst=smoothstep(.86,.90,cycle)*(1.0-smoothstep(.97,1.0,cycle));
    float trackingY=.5+hash(vec2(floor(u_time/4.8),19.))*.32;
    float trackDistance=(v_uv.y-trackingY)/.013;
    float tracking=exp(-trackDistance*trackDistance)*burst*u_wear;
    vec2 sampleUV=v_uv;
-   sampleUV.x+=sin(v_uv.y*95.0+u_time*6.0)*band*.0022;
-   sampleUV.x+=(rowNoise-.5)*.0018*u_wear+tracking*.009;
-   vec2 coarseUV=(floor(sampleUV*vec2(520.,360.))+.5)/vec2(520.,360.);
+   sampleUV.x+=sin(v_uv.y*95.0+u_time*6.0)*band*.0022/u_density.x;
+   sampleUV.x+=((rowNoise-.5)*.0018*u_wear+tracking*.009)/u_density.x;
+   vec2 samples=vec2(520.,360.)*u_density;
+   vec2 coarseUV=(floor(sampleUV*samples)+.5)/samples;
    sampleUV=mix(sampleUV,coarseUV,u_wear*.65);
    vec3 sharp=texture2D(u_texture,sampleUV).rgb;
-   vec3 smear=texture2D(u_texture,sampleUV-vec2(.0022,0.)).rgb*.24
-             +texture2D(u_texture,sampleUV+vec2(.0022,0.)).rgb*.24
+   vec3 smear=texture2D(u_texture,sampleUV-vec2(.0022,0.)/u_density).rgb*.24
+             +texture2D(u_texture,sampleUV+vec2(.0022,0.)/u_density).rgb*.24
              +sharp*.52;
-   vec3 ghost=texture2D(u_texture,sampleUV-vec2(.0065,.0008)).rgb;
+   vec3 ghost=texture2D(u_texture,sampleUV-vec2(.0065,.0008)/u_density).rgb;
    vec3 c=mix(sharp,smear,u_wear*.78);
    c=mix(c,ghost,u_wear*.095);
-   vec3 bloom=(texture2D(u_texture,sampleUV+vec2(.0045,.0025)).rgb
-             +texture2D(u_texture,sampleUV-vec2(.0045,.0025)).rgb)*.5;
+   vec3 bloom=(texture2D(u_texture,sampleUV+vec2(.0045,.0025)/u_density).rgb
+             +texture2D(u_texture,sampleUV-vec2(.0045,.0025)/u_density).rgb)*.5;
    c+=max(vec3(0.),(bloom-vec3(u_base))*u_tone)*u_tone*u_wear*.12;
-   float raster=.5+.5*sin(v_uv.y*300.*6.283185);
+   float raster=.5+.5*sin(v_uv.y*300.*u_density.y*6.283185);
    c=mix(c,vec3(u_base),u_scan*(1.-raster)*(.10+.23*u_wear));
    float inkMask=smoothstep(.045,.34,(sharp.r-u_base)*u_tone);
-   float letterFleck=hash(floor(sampleUV*vec2(620.,510.))+vec2(83.,11.));
+   float letterFleck=hash(floor(sampleUV*vec2(620.,510.)*u_density)+vec2(83.,11.));
    float wornPatches=smoothstep(.84,.97,letterFleck)*.62;
-   float unevenPhosphor=.88+.16*hash(floor(sampleUV*vec2(240.,310.))+vec2(4.,19.));
+   float unevenPhosphor=.88+.16*hash(floor(sampleUV*vec2(240.,310.)*u_density)+vec2(4.,19.));
    vec3 wornInk=vec3(u_base)+(c-vec3(u_base))*unevenPhosphor*(1.-wornPatches);
    c=mix(c,wornInk,inkMask*u_letterGrit);
    c+=vec3((band*.080-trailing*.030)*u_tone);
-   float grain=hash(floor(v_uv*vec2(360.,300.))+vec2(tick*17.,tick*31.));
-   float fineGrain=hash(floor(v_uv*vec2(720.,600.))+vec2(tick*11.,tick*7.));
+   float grain=hash(floor(v_uv*vec2(360.,300.)*u_density)+vec2(tick*17.,tick*31.));
+   float fineGrain=hash(floor(v_uv*vec2(720.,600.)*u_density)+vec2(tick*11.,tick*7.));
    c+=vec3(((grain-.5)*.20+(fineGrain-.5)*.07)*u_noise);
    c+=vec3((rowNoise-.5)*.045*u_noise);
    float specks=step(.988,grain)-step(grain,.012);
@@ -157,7 +161,7 @@
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       gl.uniform1i(gl.getUniformLocation(program, 'u_texture'), 0);
       const uniforms = {};
-      for (const name of ['bulge', 'aspect', 'scan', 'time', 'roll', 'noise', 'period', 'tone', 'wear', 'base', 'letterGrit']) {
+      for (const name of ['bulge', 'density', 'scan', 'time', 'roll', 'noise', 'period', 'tone', 'wear', 'base', 'letterGrit']) {
         uniforms[name] = gl.getUniformLocation(program, 'u_' + name);
       }
       const set = (name, value) => gl.uniform1f(uniforms[name], value);
@@ -176,7 +180,8 @@
               gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) return false;
           gl.viewport(0, 0, canvas.width, canvas.height);
           gl.useProgram(program);
-          set('aspect', width / height);
+          // Keep the original grain, scanline, and lettering wear at the same pixel scale.
+          gl.uniform2f(uniforms.density, width / 440, height / 374);
           return true;
         },
         paint() {
@@ -209,88 +214,112 @@
     }
   }
 
-  function buildText() {
-    if (!active || !renderer) return;
+  function buildText(progress = 1) {
     const style = getComputedStyle(document.documentElement);
     const background = style.getPropertyValue('--glass').trim();
     const foreground = style.getPropertyValue('--phosphor').trim();
     tone = parseInt(foreground.slice(1, 3), 16) > 128 ? 1 : -1;
     base = parseInt(background.slice(1, 3), 16) / 255;
     const ctx = textContext;
-    ctx.clearRect(0, 0, 960, 820);
+    ctx.setTransform(source.width / screenWidth, 0, 0, source.height / screenHeight, 0, 0);
+    ctx.clearRect(0, 0, screenWidth, screenHeight);
     ctx.fillStyle = background;
-    ctx.fillRect(0, 0, 960, 820);
-    const glare = ctx.createRadialGradient(410, 170, 20, 410, 270, 640);
+    ctx.fillRect(0, 0, screenWidth, screenHeight);
+    const glare = ctx.createRadialGradient(screenWidth * .43, screenHeight * .21, 0,
+      screenWidth * .43, screenHeight * .33, Math.max(screenWidth, screenHeight) * .67);
     glare.addColorStop(0, 'rgba(255,255,255,.045)');
     glare.addColorStop(1, 'rgba(0,0,0,.065)');
     ctx.fillStyle = glare;
-    ctx.fillRect(0, 0, 960, 820);
-    ctx.fillStyle = foreground;
-    ctx.font = '400 60px Arial, sans-serif';
-    ctx.textBaseline = 'top';
-    ctx.shadowColor = foreground;
-    ctx.shadowBlur = tone > 0 ? 3 : 0;
-    ctx.fillText(active.name, 140, 135);
-    const titleWidth = ctx.measureText(active.name).width;
-    titleArea.right = 140 + titleWidth;
-    ctx.globalAlpha = .4;
-    ctx.fillRect(140, 205, titleWidth, 1.3);
-    ctx.globalAlpha = 1;
-    ctx.shadowBlur = 0;
-    ctx.font = '400 40px Arial, sans-serif';
-    let line = '';
-    let y = 272;
-    for (const word of active.description.split(' ')) {
-      const next = line ? line + ' ' + word : word;
-      if (ctx.measureText(next).width > 650 && line) {
-        ctx.fillText(line, 140, y);
-        y += 64;
-        line = word;
-      } else {
-        line = next;
+    ctx.fillRect(0, 0, screenWidth, screenHeight);
+    ctx.textBaseline = 'alphabetic';
+    for (const run of textRuns) {
+      ctx.font = run.font;
+      ctx.letterSpacing = run.spacing;
+      ctx.fillStyle = run.color;
+      ctx.globalAlpha = run.detail ? progress : 1;
+      ctx.shadowColor = run.color;
+      ctx.shadowBlur = tone > 0 ? 1.2 : 0;
+      const x = run.x + (run.detail ? (1 - progress) * 10 : 0);
+      ctx.fillText(run.text, x, run.y);
+      ctx.shadowBlur = 0;
+      if (run.underline) {
+        ctx.globalAlpha *= .6;
+        ctx.fillRect(x, run.y + 5, run.width, 1);
       }
     }
-    ctx.fillText(line, 140, y);
+    ctx.globalAlpha = 1;
     renderer.upload();
   }
 
-  // The real link occupies the same projected area as the title drawn on glass.
-  function projectPoint(u, v, width, height) {
-    const x = u * 2 - 1;
-    const y = 1 - v * 2;
-    const z = effects.curvature * (2 - x*x - y*y);
-    const distance = 3.7 - z;
+  function projectPoint(x, y) {
+    const u = x / screenWidth * 2 - 1;
+    const v = 1 - y / screenHeight * 2;
+    const distance = 3.7 - effects.curvature * (2 - u*u - v*v);
     return {
-      x: (x * 1.19 * 2.67 / (width / height) / distance + 1) * width / 2,
-      y: (1 - y * 2.67 / distance) * height / 2
+      x: (u * 3.4 / distance + 1) * screenWidth / 2,
+      y: (1 - v * 3.4 / distance) * screenHeight / 2
     };
   }
 
   function draw() {
-    if (!active) return;
+    // Measure ordinary HTML first; it also remains the complete fallback display.
+    surface.classList.remove('is-rendered');
+    controls.forEach(control => { control.style.transform = ''; });
     const rendered = !!renderer && !compact.matches;
-    surface.classList.toggle('is-rendered', rendered);
     canvas.hidden = !rendered;
-    if (!rendered) {
-      title.removeAttribute('style');
-      return;
+    if (!rendered) return;
+    screenWidth = surface.clientWidth;
+    screenHeight = surface.clientHeight;
+    if (!screenWidth || !screenHeight) return;
+    if (!renderer.resize(screenWidth, screenHeight)) { useTextDisplay(); return; }
+    const ratio = Math.min(devicePixelRatio || 1, 2);
+    source.width = Math.round(screenWidth * ratio);
+    source.height = Math.round(screenHeight * ratio);
+    const origin = surface.getBoundingClientRect();
+    const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT);
+    const range = document.createRange();
+    textRuns = [];
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      const element = node.parentElement;
+      if (element.closest('[hidden]')) continue;
+      const style = getComputedStyle(element);
+      const size = parseFloat(style.fontSize);
+      textContext.font = style.font;
+      const metrics = textContext.measureText('Mg');
+      const ascent = metrics.fontBoundingBoxAscent ?? size * .9;
+      const descent = metrics.fontBoundingBoxDescent ?? size * .22;
+      for (const match of node.textContent.matchAll(/\S+/g)) {
+        range.setStart(node, match.index);
+        range.setEnd(node, match.index + match[0].length);
+        const rect = range.getBoundingClientRect();
+        if (!rect.width || !rect.height) continue;
+        textRuns.push({ text: match[0], font: style.font,
+          spacing: style.letterSpacing === 'normal' ? '0px' : style.letterSpacing,
+          color: style.color, x: rect.left - origin.left,
+          y: rect.top - origin.top + (rect.height - ascent - descent) / 2 + ascent,
+          width: rect.width, underline: style.textDecorationLine.includes('underline'),
+          detail: panel.contains(element) });
+      }
     }
-    const width = surface.clientWidth;
-    const height = surface.clientHeight;
-    if (!width || !height) return;
-    if (!renderer.resize(width, height) || !renderer.paint()) {
-      useTextDisplay();
-      return;
+    // Project native hit targets with the same curvature as their painted text.
+    for (const control of controls) {
+      if (control.closest('[hidden]')) continue;
+      const rect = control.getBoundingClientRect();
+      const x = rect.left - origin.left;
+      const y = rect.top - origin.top;
+      const points = [[x, y], [x + rect.width, y], [x, y + rect.height],
+        [x + rect.width, y + rect.height]].map(([left, top]) => projectPoint(left, top));
+      const left = Math.min(...points.map(point => point.x));
+      const top = Math.min(...points.map(point => point.y));
+      const width = Math.max(...points.map(point => point.x)) - left;
+      const height = Math.max(...points.map(point => point.y)) - top;
+      control.style.transformOrigin = 'top left';
+      control.style.transform = `translate(${left - x}px, ${top - y}px) scale(${width / rect.width}, ${height / rect.height})`;
     }
-    const points = [[titleArea.left, titleArea.top], [titleArea.right, titleArea.top],
-      [titleArea.left, titleArea.bottom], [titleArea.right, titleArea.bottom]]
-      .map(([x, y]) => projectPoint(x / 960, y / 820, width, height));
-    const left = Math.min(...points.map(point => point.x));
-    const top = Math.min(...points.map(point => point.y));
-    title.style.left = left + 'px';
-    title.style.top = top + 'px';
-    title.style.width = Math.max(...points.map(point => point.x)) - left + 'px';
-    title.style.height = Math.max(...points.map(point => point.y)) - top + 'px';
+    buildText(revealStarted === null ? 1 : Math.min(1, (elapsed - revealStarted) / .24));
+    if (!renderer.paint()) { useTextDisplay(); return; }
+    surface.classList.add('is-rendered');
   }
 
   function stopEffects() {
@@ -309,16 +338,21 @@
 
   function startEffects() {
     stopEffects();
-    if (!active || reducedMotion.matches || document.hidden || !inView) return;
+    if (reducedMotion.matches || document.hidden || !inView) return;
     site.dataset.effectsPaused = 'false';
     if (!renderer || compact.matches) return;
     function frame(now) {
-      if (!active || document.hidden || !inView || reducedMotion.matches) { stopEffects(); return; }
+      if (document.hidden || !inView || reducedMotion.matches) { stopEffects(); return; }
       if (!lastFrame) lastFrame = now;
       const delta = now - lastFrame;
       if (delta >= 1000 / 30) {
         elapsed += Math.min(delta, 100) / 1000;
         lastFrame = now;
+        if (revealStarted !== null) {
+          const progress = Math.min(1, (elapsed - revealStarted) / .24);
+          buildText(progress);
+          if (progress === 1) revealStarted = null;
+        }
         if (!renderer.paint()) { useTextDisplay(); return; }
       }
       frameId = requestAnimationFrame(frame);
@@ -329,13 +363,14 @@
   function close(returnFocus = true) {
     const previous = active;
     reveal?.cancel();
-    stopEffects();
+    revealStarted = null;
     active = null;
     panel.hidden = true;
     site.dataset.open = 'false';
     projects.forEach(project => project.button.setAttribute('aria-expanded', 'false'));
     status.textContent = '';
     if (returnFocus) previous?.button.focus();
+    draw();
   }
 
   function open(project) {
@@ -348,16 +383,15 @@
     panel.hidden = false;
     site.dataset.open = 'true';
     projects.forEach(item => item.button.setAttribute('aria-expanded', String(item === project)));
-    buildText();
+    revealStarted = !reducedMotion.matches && renderer && !compact.matches ? elapsed : null;
     draw();
     startEffects();
     status.textContent = project.name + ' description opened.';
-    if (!reducedMotion.matches) {
+    if (!reducedMotion.matches && (!renderer || compact.matches)) {
       reveal = panel.animate([
-        { opacity: 0, transform: 'translateX(-30px) scale(.90,.96)', filter: 'blur(6px)' },
-        { opacity: .7, offset: .52, transform: 'translateX(3px) scale(1.008)', filter: 'blur(.7px)' },
-        { opacity: 1, transform: 'none', filter: 'blur(0)' }
-      ], { duration: 540, easing: 'cubic-bezier(.18,.7,.2,1)' });
+        { opacity: 0, transform: 'translateX(10px)' },
+        { opacity: 1, transform: 'none' }
+      ], { duration: 240, easing: 'ease-out' });
     }
   }
 
@@ -376,6 +410,15 @@
     button.addEventListener('click', () => open(project));
     anchor.replaceWith(button);
   });
+
+  panel.querySelector('.project-close').addEventListener('click', () => close());
+  controls = [...content.querySelectorAll('a, button')];
+  controls.forEach(control => {
+    control.addEventListener('pointerenter', draw);
+    control.addEventListener('pointerleave', draw);
+  });
+  content.addEventListener('focusin', draw);
+  content.addEventListener('focusout', draw);
 
   const grain = document.createElement('canvas');
   grain.width = grain.height = 64;
@@ -400,13 +443,14 @@
   new IntersectionObserver(entries => {
     inView = entries[0].isIntersecting;
     startEffects();
-  }).observe(panel);
+  }).observe(surface);
   compact.addEventListener('change', () => { draw(); startEffects(); });
-  reducedMotion.addEventListener('change', () => { reveal?.cancel(); draw(); startEffects(); });
-  appearance.addEventListener('change', () => { buildText(); draw(); });
+  reducedMotion.addEventListener('change', () => { reveal?.cancel(); revealStarted = null; draw(); startEffects(); });
+  appearance.addEventListener('change', draw);
   document.addEventListener('visibilitychange', startEffects);
   // Keep the readable CSS display for this page visit after a GPU failure.
   // Recreating the same failing renderer can otherwise blink indefinitely.
   canvas.addEventListener('webglcontextlost', useTextDisplay);
+  draw();
   stopEffects();
 })();

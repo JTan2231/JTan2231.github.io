@@ -11,39 +11,42 @@
   </head>
   <body>
     <div class="site" data-open="false">
-      <main aria-labelledby="name">
-        <h1 id="name">Joey Tan</h1>
-        <p class="blurb">
-          Software Engineer.<br />
-          I enjoy bold architectural bets and enduring designs.
-        </p>
-        <ul class="projects" aria-label="Projects">
-          <li>
-            <a class="project-trigger" href="https://github.com/JTan2231/cell"
-              data-project="cell"
-              data-description="An exploration of multi-agent coordination and knowledge infrastructure. Independent agents, shared context, and systems designed to carry knowledge forward.">
-              <span class="project-name">Cell</span>
-              <span class="subtitle">Multi-agent coordination and knowledge infrastructure</span>
-            </a>
-          </li>
-          <li>
-            <a class="project-trigger" href="https://wrought.joeytan.dev"
-              data-project="wrought"
-              data-description="A generative narrative engine. An exploration of how authored structure and generated material can come together to create stories that unfold through interaction.">
-              <span class="project-name">Wrought</span>
-              <span class="subtitle">Generative narrative engine</span>
-            </a>
-          </li>
-        </ul>
-      </main>
-      <div class="projection-slot">
-        <section class="projection" id="project-display" aria-labelledby="project-title" hidden>
-          <div class="screen-surface">
-            <canvas class="screen-canvas" aria-hidden="true" hidden></canvas>
-            <h2 class="project-title" id="project-title"><a class="project-link"></a></h2>
+      <div class="screen-surface">
+        <canvas class="screen-canvas" aria-hidden="true" hidden></canvas>
+        <div class="screen-content">
+          <main aria-labelledby="name">
+            <h1 id="name">Joey Tan</h1>
+            <p class="blurb">
+              Software Engineer.<br />
+              I enjoy bold architectural bets and enduring designs.
+            </p>
+            <ul class="projects" aria-label="Projects">
+              <li>
+                <a class="project-trigger" href="https://github.com/JTan2231/cell"
+                  data-project="cell"
+                  data-description="An exploration of multi-agent coordination and knowledge infrastructure. Independent agents, shared context, and systems designed to carry knowledge forward.">
+                  <span class="project-name">Cell</span>
+                  <span class="subtitle">Multi-agent coordination and knowledge infrastructure</span>
+                </a>
+              </li>
+              <li>
+                <a class="project-trigger" href="https://wrought.joeytan.dev"
+                  data-project="wrought"
+                  data-description="A generative narrative engine. An exploration of how authored structure and generated material can come together to create stories that unfold through interaction.">
+                  <span class="project-name">Wrought</span>
+                  <span class="subtitle">Generative narrative engine</span>
+                </a>
+              </li>
+            </ul>
+          </main>
+          <section class="projection" id="project-display" aria-labelledby="project-title" hidden>
+            <div class="project-heading">
+              <h2 class="project-title" id="project-title"><a class="project-link"></a></h2>
+              <button class="project-close" type="button">Close</button>
+            </div>
             <p class="project-description"></p>
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
       <span class="sr-only" role="status" aria-live="polite" id="project-status"></span>
     </div>
