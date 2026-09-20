@@ -119,6 +119,19 @@ a:focus-visible, button:focus-visible { outline: 1px solid var(--ink); outline-o
 .site[data-effects-paused="true"] .screen-surface::after { animation-play-state: paused; }
 .screen-surface.is-rendered { border-radius: 0; background: transparent; overflow: visible; }
 .screen-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.screen-shadow { display: none; }
+@media (prefers-color-scheme: dark) {
+  .screen-surface:not(.is-rendered) .screen-shadow {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    border-radius: inherit;
+    box-shadow: inset 0 0 16px 8px var(--page),
+      inset 0 0 clamp(48px, 8vw, 130px) clamp(12px, 2vw, 32px) var(--page);
+    pointer-events: none;
+  }
+}
 /* Keep real text and native controls accessible above their painted counterparts. */
 .is-rendered .screen-content,
 .is-rendered .screen-content :is(h1, p, span, a, button) { color: transparent; text-decoration-color: transparent; text-shadow: none; }

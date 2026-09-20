@@ -103,6 +103,9 @@
    c+=vec3((grain-.35)*tracking*.18);
    float edge=pow(abs(v_uv.x-.5)*2.0,6.0)+pow(abs(v_uv.y-.5)*2.0,6.0);
    c=mix(c,vec3(u_base*.7),clamp(edge,0.,1.)*(.08+.13*u_wear));
+   // An inset shadow follows the curved glass and darkens the finished image,
+   // including static and rolling highlights, all the way to black at the edge.
+   if(u_tone>0.0)c*=smoothstep(0.0,.24,-sd);
    gl_FragColor=vec4(c,mask);
  }`;
 
