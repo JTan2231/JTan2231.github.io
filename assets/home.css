@@ -50,7 +50,7 @@ body {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  border-radius: 6% / 8%;
+  border-radius: 16% / 18%;
   background: var(--glass);
   color: var(--phosphor);
   -webkit-user-select: none;

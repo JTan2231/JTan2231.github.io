@@ -54,8 +54,8 @@
  float hash(vec2 p){vec3 q=fract(vec3(p.xyx)*.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}
  void main(){
    // Fade the entire screen into the page before reaching the mesh boundary.
-   vec2 p=abs(v_uv*2.0-1.0)-vec2(.82,.81);
-   float sd=length(max(p,0.0))+min(max(p.x,p.y),0.0)-.17;
+   vec2 p=abs(v_uv*2.0-1.0)-vec2(.59,.58);
+   float sd=length(max(p,0.0))+min(max(p.x,p.y),0.0)-.40;
    float mask=smoothstep(0.0,.14,-sd);
    if(mask<=0.0)discard;
    float rollY=fract(u_time/u_period+.32)*1.4-.2;
