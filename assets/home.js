@@ -53,12 +53,11 @@
  uniform float u_scan,u_time,u_roll,u_noise,u_period,u_tone,u_wear,u_base,u_letterGrit;
  float hash(vec2 p){vec3 q=fract(vec3(p.xyx)*.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}
  void main(){
-   // Leave room for the full edge fade inside the projected mesh.
+   // Fade the entire screen into the page before reaching the mesh boundary.
    vec2 p=abs(v_uv*2.0-1.0)-vec2(.82,.81);
    float sd=length(max(p,0.0))+min(max(p.x,p.y),0.0)-.17;
-   float mask=1.0-smoothstep(-.006,.006,sd);
-   if(mask<.005)discard;
-   float textureMask=smoothstep(.004,.05,-sd);
+   float mask=smoothstep(0.0,.14,-sd);
+   if(mask<=0.0)discard;
    float rollY=fract(u_time/u_period+.32)*1.4-.2;
    float dy=v_uv.y-rollY;
    float band=exp(-dy*dy/.0064)*u_roll;
@@ -87,7 +86,7 @@
              +texture2D(u_texture,sampleUV-vec2(.0045,.0025)/u_density).rgb)*.5;
    c+=max(vec3(0.),(bloom-vec3(u_base))*u_tone)*u_tone*u_wear*.12;
    float raster=.5+.5*sin(v_uv.y*300.*u_density.y*6.283185);
-   c=mix(c,vec3(u_base),u_scan*textureMask*(1.-raster)*(.10+.23*u_wear));
+   c=mix(c,vec3(u_base),u_scan*(1.-raster)*(.10+.23*u_wear));
    float inkMask=smoothstep(.045,.34,(sharp.r-u_base)*u_tone);
    float letterFleck=hash(floor(sampleUV*vec2(620.,510.)*u_density)+vec2(83.,11.));
    float wornPatches=smoothstep(.84,.97,letterFleck)*.62;
@@ -97,15 +96,11 @@
    c+=vec3((band*.080-trailing*.030)*u_tone);
    float grain=hash(floor(v_uv*vec2(360.,300.)*u_density)+vec2(tick*17.,tick*31.));
    float fineGrain=hash(floor(v_uv*vec2(720.,600.)*u_density)+vec2(tick*11.,tick*7.));
-   // Ease the static into a clean glass rim instead of a noisy silhouette.
-   c+=vec3(((grain-.5)*.20+(fineGrain-.5)*.07)*u_noise*textureMask);
-   c+=vec3((rowNoise-.5)*.045*u_noise*textureMask);
+   c+=vec3(((grain-.5)*.20+(fineGrain-.5)*.07)*u_noise);
+   c+=vec3((rowNoise-.5)*.045*u_noise);
    float specks=step(.988,grain)-step(grain,.012);
-   c+=vec3(specks*.11*u_noise*textureMask);
-   c+=vec3((grain-.35)*tracking*.18*textureMask);
-   float rimDistance=(sd+.014)/.012;
-   float rim=exp(-rimDistance*rimDistance);
-   c+=vec3(rim*.070);
+   c+=vec3(specks*.11*u_noise);
+   c+=vec3((grain-.35)*tracking*.18);
    float edge=pow(abs(v_uv.x-.5)*2.0,6.0)+pow(abs(v_uv.y-.5)*2.0,6.0);
    c=mix(c,vec3(u_base*.7),clamp(edge,0.,1.)*(.08+.13*u_wear));
    gl_FragColor=vec4(c,mask);
