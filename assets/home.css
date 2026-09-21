@@ -113,6 +113,8 @@ a:focus-visible, button:focus-visible { outline: 1px solid var(--ink); outline-o
 .project-close { min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--muted); font: 13px/1.5 Arial, Helvetica, sans-serif; cursor: pointer; }
 .project-close:hover { color: var(--phosphor); }
 .project-description { margin: 0; font-size: 16px; line-height: 1.7; }
+/* Reserve each word's final space while its letters are revealed. */
+.typing-word { display: inline-block; text-decoration: inherit; }
 .screen-surface:not(.is-rendered) .screen-content { text-shadow: 0 0 2px var(--glow), 1.5px 0 1px var(--echo); }
 .screen-surface:not(.is-rendered)::before,
 .screen-surface:not(.is-rendered)::after { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; }

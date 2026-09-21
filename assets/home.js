@@ -15,6 +15,7 @@
   const appearance = matchMedia('(prefers-color-scheme: dark)');
   const effects = { curvature: .15, rolling: .85, static: .57, period: 6.5, wear: .8, letterGrit: .75 };
   const projects = new Map();
+  const words = new WeakMap();
   const source = document.createElement('canvas');
   const textContext = source.getContext('2d');
   let controls = [];
@@ -32,6 +33,81 @@
   let inView = false;
   let tone = 1;
   let base = .11;
+  let typingFrame = 0;
+  let typingWords = [];
+
+  function revealWord(word, count) {
+    if (word.visible === count) return;
+    word.visible = count;
+    if (!count) {
+      word.element.style.clipPath = 'inset(0 100% 0 0)';
+    } else if (count === word.characters.length) {
+      word.element.style.clipPath = '';
+    } else {
+      const range = document.createRange();
+      range.setStart(word.element.firstChild, 0);
+      range.setEnd(word.element.firstChild, word.characters.slice(0, count).join('').length);
+      const width = word.element.getBoundingClientRect().width;
+      const remaining = width ? 100 * (1 - range.getBoundingClientRect().width / width) : 0;
+      word.element.style.clipPath = `inset(-4px ${remaining}% -6px -4px)`;
+    }
+  }
+
+  function finishTyping() {
+    cancelAnimationFrame(typingFrame);
+    typingFrame = 0;
+    typingWords.forEach(word => revealWord(word, word.characters.length));
+    typingWords = [];
+  }
+
+  function startTyping(root) {
+    finishTyping();
+    // Keep complete text in the DOM, with its final layout and accessible names.
+    // Only its visual reveal changes, in the same reading order as the HTML.
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) {
+      if (!walker.currentNode.parentElement.closest('.typing-word')) nodes.push(walker.currentNode);
+    }
+    for (const node of nodes) {
+      const fragment = document.createDocumentFragment();
+      for (const part of node.textContent.match(/\s+|\S+/g) || []) {
+        if (/^\s+$/.test(part)) {
+          fragment.append(document.createTextNode(part));
+          continue;
+        }
+        const element = document.createElement('span');
+        element.className = 'typing-word';
+        element.textContent = part;
+        const characters = Array.from(part);
+        words.set(element, { element, characters, visible: characters.length });
+        fragment.append(element);
+      }
+      node.replaceWith(fragment);
+    }
+    if (reducedMotion.matches) return;
+    typingWords = [...root.querySelectorAll('.typing-word')].map(element => words.get(element));
+    let length = 0;
+    for (const word of typingWords) {
+      word.start = length;
+      length += word.characters.length + 1;
+      revealWord(word, 0);
+    }
+    const started = performance.now();
+    let previous = -1;
+    function frame(now) {
+      const count = Math.floor((now - started) / 20);
+      if (count !== previous) {
+        typingWords.forEach(word => revealWord(word,
+          Math.max(0, Math.min(word.characters.length, count - word.start))));
+        paintScene();
+        previous = count;
+      }
+      if (count < length) typingFrame = requestAnimationFrame(frame);
+      else finishTyping();
+    }
+    typingFrame = requestAnimationFrame(frame);
+  }
 
   const vertexShader = `
     attribute vec2 a_position;
@@ -248,6 +324,8 @@
     ctx.fillRect(0, 0, screenWidth, screenHeight);
     ctx.textBaseline = 'alphabetic';
     for (const run of textRuns) {
+      const text = run.word ? run.word.characters.slice(0, run.word.visible).join('') : run.text;
+      if (!text) continue;
       const { scale, opacity } = plane(run.detail);
       ctx.save();
       ctx.translate(screenWidth / 2, screenHeight / 2);
@@ -260,11 +338,12 @@
       ctx.fillStyle = fadedColor(run.color, opacity);
       ctx.shadowColor = ctx.fillStyle;
       ctx.shadowBlur = tone > 0 ? 1.2 : 0;
-      ctx.fillText(run.text, run.x, run.y);
+      ctx.fillText(text, run.x, run.y);
       ctx.shadowBlur = 0;
       if (run.underline) {
         ctx.fillStyle = fadedColor(run.color, opacity * .6);
-        ctx.fillRect(run.x, run.y + 5, run.width, 1);
+        const width = text === run.text ? run.width : ctx.measureText(text).width;
+        ctx.fillRect(run.x, run.y + 5, width, 1);
       }
       ctx.restore();
     }
@@ -306,6 +385,8 @@
       const element = node.parentElement;
       if (element.closest('[hidden]')) continue;
       const style = getComputedStyle(element);
+      const word = words.get(element);
+      const decoration = word ? getComputedStyle(element.parentElement) : style;
       const size = parseFloat(style.fontSize);
       textContext.font = style.font;
       const metrics = textContext.measureText('Mg');
@@ -320,7 +401,7 @@
           spacing: style.letterSpacing === 'normal' ? '0px' : style.letterSpacing,
           color: style.color, x: rect.left - origin.left,
           y: rect.top - origin.top + (rect.height - ascent - descent) / 2 + ascent,
-          width: rect.width, underline: style.textDecorationLine.includes('underline'),
+          width: rect.width, underline: decoration.textDecorationLine.includes('underline'), word,
           detail: panel.contains(element) });
       }
     }
@@ -419,6 +500,7 @@
     site.dataset.open = 'false';
     projects.forEach(project => project.button.setAttribute('aria-expanded', 'false'));
     status.textContent = '';
+    startTyping(main);
     if (returnFocus) previous?.button.focus({ preventScroll: true });
     draw();
     movePlanes(0);
@@ -435,6 +517,7 @@
     main.inert = true;
     site.dataset.open = 'true';
     projects.forEach(item => item.button.setAttribute('aria-expanded', String(item === project)));
+    startTyping(panel);
     draw();
     movePlanes(1);
     startEffects();
@@ -492,12 +575,13 @@
     startEffects();
   }).observe(surface);
   compact.addEventListener('change', () => { draw(); startEffects(); });
-  reducedMotion.addEventListener('change', () => { movePlanes(active ? 1 : 0); startEffects(); });
+  reducedMotion.addEventListener('change', () => { finishTyping(); movePlanes(active ? 1 : 0); startEffects(); });
   appearance.addEventListener('change', draw);
   document.addEventListener('visibilitychange', startEffects);
   // Keep the readable CSS display for this page visit after a GPU failure.
   // Recreating the same failing renderer can otherwise blink indefinitely.
   canvas.addEventListener('webglcontextlost', useTextDisplay);
+  startTyping(main);
   draw();
   stopEffects();
 })();
