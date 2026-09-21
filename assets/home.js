@@ -224,6 +224,11 @@
       : { scale: 900 / (900 + depth * 180), opacity: 1 - depth * .8 };
   }
 
+  function fadedColor(color, opacity) {
+    const [red, green, blue, alpha = 1] = color.match(/[\d.]+/g).map(Number);
+    return `rgba(${red}, ${green}, ${blue}, ${alpha * opacity})`;
+  }
+
   function buildText() {
     const style = getComputedStyle(document.documentElement);
     const background = style.getPropertyValue('--glass').trim();
@@ -250,14 +255,15 @@
       ctx.translate(-screenWidth / 2, -screenHeight / 2);
       ctx.font = run.font;
       ctx.letterSpacing = run.spacing;
-      ctx.fillStyle = run.color;
-      ctx.globalAlpha = opacity;
-      ctx.shadowColor = run.color;
+      // Safari ignores globalAlpha for text with a blurred shadow. Fade both
+      // colors explicitly so the lettering and its glow recede together.
+      ctx.fillStyle = fadedColor(run.color, opacity);
+      ctx.shadowColor = ctx.fillStyle;
       ctx.shadowBlur = tone > 0 ? 1.2 : 0;
       ctx.fillText(run.text, run.x, run.y);
       ctx.shadowBlur = 0;
       if (run.underline) {
-        ctx.globalAlpha *= .6;
+        ctx.fillStyle = fadedColor(run.color, opacity * .6);
         ctx.fillRect(run.x, run.y + 5, run.width, 1);
       }
       ctx.restore();
