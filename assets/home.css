@@ -45,7 +45,7 @@ body {
   background: var(--page);
 }
 
-.site { width: 100%; }
+.site { width: 100%; --depth: 0; }
 .screen-surface {
   position: relative;
   isolation: isolate;
@@ -67,7 +67,12 @@ body {
   align-items: center;
   gap: clamp(24px, 3vw, 56px);
 }
-main { grid-column: 2; width: 100%; max-width: 440px; min-width: 0; margin: auto; text-align: center; }
+main, .projection { grid-area: 1 / 2; width: 100%; max-width: 440px; min-width: 0; margin: auto; }
+main {
+  text-align: center;
+  transform: perspective(900px) translateZ(calc(var(--depth) * -180px));
+  opacity: calc(1 - var(--depth) * .8);
+}
 h1 { margin: 0 0 10px; font-size: 24px; font-weight: 500; letter-spacing: -.02em; }
 .blurb { margin: 0 0 34px; color: var(--intro); font-size: 15px; line-height: 1.5; }
 .projects { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
@@ -94,7 +99,14 @@ h1 { margin: 0 0 10px; font-size: 24px; font-weight: 500; letter-spacing: -.02em
 .subtitle { color: var(--muted); text-align: right; font-size: 13px; }
 a:focus-visible, button:focus-visible { outline: 1px solid var(--ink); outline-offset: 5px; }
 
-.projection { grid-column: 3; min-width: 0; width: 100%; }
+.projection {
+  position: relative;
+  z-index: 1;
+  transform: perspective(900px) translateZ(calc((1 - var(--depth)) * 60px));
+  opacity: clamp(0, calc((var(--depth) - .18) / .82), 1);
+}
+/* Measure both planes at rest before painting their depth into the CRT texture. */
+.screen-content.is-measuring > :is(main, .projection) { transform: none; }
 .project-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
 .project-title { margin: 0; font-size: 24px; line-height: 1.2; font-weight: 400; }
 .project-link { display: inline-block; min-height: 44px; color: inherit; text-decoration: underline; text-underline-offset: 6px; text-decoration-thickness: 1px; }
@@ -156,7 +168,7 @@ a:focus-visible, button:focus-visible { outline: 1px solid var(--ink); outline-o
 
 @media (max-width: 900px) {
   .screen-content { grid-template-columns: minmax(0, 1fr); gap: 32px; align-content: center; padding: 64px 10%; }
-  main, .projection { grid-column: 1; max-width: 440px; margin: 0 auto; }
+  main, .projection { grid-area: 1 / 1; margin: 0 auto; }
 }
 @media (max-width: 520px) {
   body { padding: 20px 12px; }

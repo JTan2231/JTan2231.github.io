@@ -5,6 +5,7 @@
   const panel = document.getElementById('project-display');
   const surface = site.querySelector('.screen-surface');
   const content = surface.querySelector('.screen-content');
+  const main = content.querySelector('main');
   const canvas = surface.querySelector('.screen-canvas');
   const link = panel.querySelector('.project-link');
   const description = panel.querySelector('.project-description');
@@ -17,17 +18,18 @@
   const source = document.createElement('canvas');
   const textContext = source.getContext('2d');
   let controls = [];
+  let controlBounds = [];
   let textRuns = [];
   let screenWidth = 0;
   let screenHeight = 0;
-  let revealStarted = null;
+  let depth = 0;
+  let transitionFrame = 0;
   let active = null;
   let renderer = null;
   let frameId = 0;
   let lastFrame = 0;
   let elapsed = 0;
   let inView = false;
-  let reveal = null;
   let tone = 1;
   let base = .11;
 
@@ -216,7 +218,13 @@
     }
   }
 
-  function buildText(progress = 1) {
+  function plane(detail) {
+    return detail
+      ? { scale: 900 / (900 - (1 - depth) * 60), opacity: Math.max(0, (depth - .18) / .82) }
+      : { scale: 900 / (900 + depth * 180), opacity: 1 - depth * .8 };
+  }
+
+  function buildText() {
     const style = getComputedStyle(document.documentElement);
     const background = style.getPropertyValue('--glass').trim();
     const foreground = style.getPropertyValue('--phosphor').trim();
@@ -235,19 +243,24 @@
     ctx.fillRect(0, 0, screenWidth, screenHeight);
     ctx.textBaseline = 'alphabetic';
     for (const run of textRuns) {
+      const { scale, opacity } = plane(run.detail);
+      ctx.save();
+      ctx.translate(screenWidth / 2, screenHeight / 2);
+      ctx.scale(scale, scale);
+      ctx.translate(-screenWidth / 2, -screenHeight / 2);
       ctx.font = run.font;
       ctx.letterSpacing = run.spacing;
       ctx.fillStyle = run.color;
-      ctx.globalAlpha = run.detail ? progress : 1;
+      ctx.globalAlpha = opacity;
       ctx.shadowColor = run.color;
       ctx.shadowBlur = tone > 0 ? 1.2 : 0;
-      const x = run.x + (run.detail ? (1 - progress) * 10 : 0);
-      ctx.fillText(run.text, x, run.y);
+      ctx.fillText(run.text, run.x, run.y);
       ctx.shadowBlur = 0;
       if (run.underline) {
         ctx.globalAlpha *= .6;
-        ctx.fillRect(x, run.y + 5, run.width, 1);
+        ctx.fillRect(run.x, run.y + 5, run.width, 1);
       }
+      ctx.restore();
     }
     ctx.globalAlpha = 1;
     renderer.upload();
@@ -278,6 +291,7 @@
     source.width = Math.round(screenWidth * ratio);
     source.height = Math.round(screenHeight * ratio);
     const origin = surface.getBoundingClientRect();
+    content.classList.add('is-measuring');
     const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT);
     const range = document.createRange();
     textRuns = [];
@@ -304,24 +318,58 @@
           detail: panel.contains(element) });
       }
     }
-    // Project native hit targets with the same curvature as their painted text.
-    for (const control of controls) {
-      if (control.closest('[hidden]')) continue;
+    controlBounds = controls.filter(control => !control.closest('[hidden]')).map(control => {
       const rect = control.getBoundingClientRect();
-      const x = rect.left - origin.left;
-      const y = rect.top - origin.top;
-      const points = [[x, y], [x + rect.width, y], [x, y + rect.height],
-        [x + rect.width, y + rect.height]].map(([left, top]) => projectPoint(left, top));
+      return { control, x: rect.left - origin.left, y: rect.top - origin.top,
+        width: rect.width, height: rect.height, detail: panel.contains(control) };
+    });
+    content.classList.remove('is-measuring');
+    paintScene();
+    if (renderer) surface.classList.add('is-rendered');
+  }
+
+  function paintScene() {
+    site.style.setProperty('--depth', depth);
+    if (!renderer || compact.matches) return;
+    // Match native hit targets to both the plane's depth and the curved glass.
+    for (const bounds of controlBounds) {
+      const { control, width: originalWidth, height: originalHeight } = bounds;
+      if (!originalWidth || !originalHeight) continue;
+      const { scale } = plane(bounds.detail);
+      const x = screenWidth / 2 + (bounds.x - screenWidth / 2) * scale;
+      const y = screenHeight / 2 + (bounds.y - screenHeight / 2) * scale;
+      const points = [[x, y], [x + originalWidth * scale, y], [x, y + originalHeight * scale],
+        [x + originalWidth * scale, y + originalHeight * scale]].map(([left, top]) => projectPoint(left, top));
       const left = Math.min(...points.map(point => point.x));
       const top = Math.min(...points.map(point => point.y));
       const width = Math.max(...points.map(point => point.x)) - left;
       const height = Math.max(...points.map(point => point.y)) - top;
       control.style.transformOrigin = 'top left';
-      control.style.transform = `translate(${left - x}px, ${top - y}px) scale(${width / rect.width}, ${height / rect.height})`;
+      control.style.transform = `translate(${(left - x) / scale}px, ${(top - y) / scale}px) scale(${width / (originalWidth * scale)}, ${height / (originalHeight * scale)})`;
     }
-    buildText(revealStarted === null ? 1 : Math.min(1, (elapsed - revealStarted) / .24));
-    if (!renderer.paint()) { useTextDisplay(); return; }
-    surface.classList.add('is-rendered');
+    buildText();
+    if (!renderer.paint()) useTextDisplay();
+  }
+
+  function movePlanes(target) {
+    cancelAnimationFrame(transitionFrame);
+    transitionFrame = 0;
+    const from = depth;
+    const started = performance.now();
+    const duration = reducedMotion.matches ? 0 : 520 * Math.abs(target - from);
+    function frame(now) {
+      const progress = duration ? Math.min(1, (now - started) / duration) : 1;
+      depth = from + (target - from) * (1 - Math.pow(1 - progress, 3));
+      paintScene();
+      if (progress < 1) {
+        transitionFrame = requestAnimationFrame(frame);
+      } else {
+        transitionFrame = 0;
+        if (!target) panel.hidden = true;
+        draw();
+      }
+    }
+    frame(started);
   }
 
   function stopEffects() {
@@ -350,11 +398,6 @@
       if (delta >= 1000 / 30) {
         elapsed += Math.min(delta, 100) / 1000;
         lastFrame = now;
-        if (revealStarted !== null) {
-          const progress = Math.min(1, (elapsed - revealStarted) / .24);
-          buildText(progress);
-          if (progress === 1) revealStarted = null;
-        }
         if (!renderer.paint()) { useTextDisplay(); return; }
       }
       frameId = requestAnimationFrame(frame);
@@ -364,37 +407,33 @@
 
   function close(returnFocus = true) {
     const previous = active;
-    reveal?.cancel();
-    revealStarted = null;
     active = null;
-    panel.hidden = true;
+    main.inert = false;
+    panel.inert = true;
     site.dataset.open = 'false';
     projects.forEach(project => project.button.setAttribute('aria-expanded', 'false'));
     status.textContent = '';
-    if (returnFocus) previous?.button.focus();
+    if (returnFocus) previous?.button.focus({ preventScroll: true });
     draw();
+    movePlanes(0);
   }
 
   function open(project) {
     if (active === project) { close(false); return; }
-    reveal?.cancel();
     active = project;
     link.textContent = project.name;
     link.href = project.url;
     description.textContent = project.description;
     panel.hidden = false;
+    panel.inert = false;
+    main.inert = true;
     site.dataset.open = 'true';
     projects.forEach(item => item.button.setAttribute('aria-expanded', String(item === project)));
-    revealStarted = !reducedMotion.matches && renderer && !compact.matches ? elapsed : null;
     draw();
+    movePlanes(1);
     startEffects();
+    link.focus({ preventScroll: true });
     status.textContent = project.name + ' description opened.';
-    if (!reducedMotion.matches && (!renderer || compact.matches)) {
-      reveal = panel.animate([
-        { opacity: 0, transform: 'translateX(10px)' },
-        { opacity: 1, transform: 'none' }
-      ], { duration: 240, easing: 'ease-out' });
-    }
   }
 
   // Keep ordinary links in the HTML so navigation also works without JavaScript.
@@ -447,7 +486,7 @@
     startEffects();
   }).observe(surface);
   compact.addEventListener('change', () => { draw(); startEffects(); });
-  reducedMotion.addEventListener('change', () => { reveal?.cancel(); revealStarted = null; draw(); startEffects(); });
+  reducedMotion.addEventListener('change', () => { movePlanes(active ? 1 : 0); startEffects(); });
   appearance.addEventListener('change', draw);
   document.addEventListener('visibilitychange', startEffects);
   // Keep the readable CSS display for this page visit after a GPU failure.
