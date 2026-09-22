@@ -12,10 +12,10 @@
   const status = document.getElementById('project-status');
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const compact = matchMedia('(max-width: 520px)');
-  const appearance = matchMedia('(prefers-color-scheme: dark)');
-  const effects = { curvature: .15, rolling: .85, static: .57, period: 6.5, wear: .8, letterGrit: .75 };
+  const effects = { curvature: .15, rolling: .85, static: .57, period: 6.5, wear: .75, letterGrit: .65 };
   const projects = new Map();
   const words = new WeakMap();
+  const visitedViews = new WeakSet();
   const source = document.createElement('canvas');
   const textContext = source.getContext('2d');
   let controls = [];
@@ -31,7 +31,6 @@
   let lastFrame = 0;
   let elapsed = 0;
   let inView = false;
-  let tone = 1;
   let base = .11;
   let typingFrame = 0;
   let typingWords = [];
@@ -60,7 +59,7 @@
     typingWords = [];
   }
 
-  function startTyping(root) {
+  function startTyping(root, view = root) {
     finishTyping();
     // Keep complete text in the DOM, with its final layout and accessible names.
     // Only its visual reveal changes, in the same reading order as the HTML.
@@ -85,6 +84,8 @@
       }
       node.replaceWith(fragment);
     }
+    if (visitedViews.has(view)) return;
+    visitedViews.add(view);
     if (reducedMotion.matches) return;
     typingWords = [...root.querySelectorAll('.typing-word')].map(element => words.get(element));
     let length = 0;
@@ -128,7 +129,7 @@
  varying vec2 v_uv;
  uniform sampler2D u_texture;
  uniform vec2 u_density;
- uniform float u_scan,u_time,u_roll,u_noise,u_period,u_tone,u_wear,u_base,u_letterGrit;
+ uniform float u_scan,u_time,u_roll,u_noise,u_period,u_wear,u_base,u_letterGrit;
  float hash(vec2 p){vec3 q=fract(vec3(p.xyx)*.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}
  void main(){
    // Fade the entire screen into the page before reaching the mesh boundary.
@@ -162,16 +163,16 @@
    c=mix(c,ghost,u_wear*.095);
    vec3 bloom=(texture2D(u_texture,sampleUV+vec2(.0045,.0025)/u_density).rgb
              +texture2D(u_texture,sampleUV-vec2(.0045,.0025)/u_density).rgb)*.5;
-   c+=max(vec3(0.),(bloom-vec3(u_base))*u_tone)*u_tone*u_wear*.12;
+   c+=max(vec3(0.),bloom-vec3(u_base))*u_wear*.12;
    float raster=.5+.5*sin(v_uv.y*300.*u_density.y*6.283185);
    c=mix(c,vec3(u_base),u_scan*(1.-raster)*(.10+.23*u_wear));
-   float inkMask=smoothstep(.045,.34,(sharp.r-u_base)*u_tone);
+   float inkMask=smoothstep(.045,.34,sharp.r-u_base);
    float letterFleck=hash(floor(sampleUV*vec2(620.,510.)*u_density)+vec2(83.,11.));
    float wornPatches=smoothstep(.84,.97,letterFleck)*.62;
    float unevenPhosphor=.88+.16*hash(floor(sampleUV*vec2(240.,310.)*u_density)+vec2(4.,19.));
    vec3 wornInk=vec3(u_base)+(c-vec3(u_base))*unevenPhosphor*(1.-wornPatches);
    c=mix(c,wornInk,inkMask*u_letterGrit);
-   c+=vec3((band*.080-trailing*.030)*u_tone);
+   c+=vec3(band*.080-trailing*.030);
    float grain=hash(floor(v_uv*vec2(360.,300.)*u_density)+vec2(tick*17.,tick*31.));
    float fineGrain=hash(floor(v_uv*vec2(720.,600.)*u_density)+vec2(tick*11.,tick*7.));
    c+=vec3(((grain-.5)*.20+(fineGrain-.5)*.07)*u_noise);
@@ -183,7 +184,7 @@
    c=mix(c,vec3(u_base*.7),clamp(edge,0.,1.)*(.08+.13*u_wear));
    // An inset shadow follows the curved glass and darkens the finished image,
    // including static and rolling highlights, all the way to black at the edge.
-   if(u_tone>0.0)c*=smoothstep(0.0,.24,-sd);
+   c*=smoothstep(0.0,.24,-sd);
    gl_FragColor=vec4(c,mask);
  }`;
 
@@ -241,7 +242,7 @@
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       gl.uniform1i(gl.getUniformLocation(program, 'u_texture'), 0);
       const uniforms = {};
-      for (const name of ['bulge', 'density', 'scan', 'time', 'roll', 'noise', 'period', 'tone', 'wear', 'base', 'letterGrit']) {
+      for (const name of ['bulge', 'density', 'scan', 'time', 'roll', 'noise', 'period', 'wear', 'base', 'letterGrit']) {
         uniforms[name] = gl.getUniformLocation(program, 'u_' + name);
       }
       const set = (name, value) => gl.uniform1f(uniforms[name], value);
@@ -275,7 +276,6 @@
           set('roll', reducedMotion.matches ? 0 : effects.rolling);
           set('noise', effects.static);
           set('period', effects.period);
-          set('tone', tone);
           set('wear', effects.wear);
           set('base', base);
           set('letterGrit', effects.letterGrit);
@@ -308,8 +308,6 @@
   function buildText() {
     const style = getComputedStyle(document.documentElement);
     const background = style.getPropertyValue('--glass').trim();
-    const foreground = style.getPropertyValue('--phosphor').trim();
-    tone = parseInt(foreground.slice(1, 3), 16) > 128 ? 1 : -1;
     base = parseInt(background.slice(1, 3), 16) / 255;
     const ctx = textContext;
     ctx.setTransform(source.width / screenWidth, 0, 0, source.height / screenHeight, 0, 0);
@@ -337,7 +335,7 @@
       // colors explicitly so the lettering and its glow recede together.
       ctx.fillStyle = fadedColor(run.color, opacity);
       ctx.shadowColor = ctx.fillStyle;
-      ctx.shadowBlur = tone > 0 ? 1.2 : 0;
+      ctx.shadowBlur = 1.2;
       ctx.fillText(text, run.x, run.y);
       ctx.shadowBlur = 0;
       if (run.underline) {
@@ -517,7 +515,7 @@
     main.inert = true;
     site.dataset.open = 'true';
     projects.forEach(item => item.button.setAttribute('aria-expanded', String(item === project)));
-    startTyping(panel);
+    startTyping(panel, project);
     draw();
     movePlanes(1);
     startEffects();
@@ -576,7 +574,6 @@
   }).observe(surface);
   compact.addEventListener('change', () => { draw(); startEffects(); });
   reducedMotion.addEventListener('change', () => { finishTyping(); movePlanes(active ? 1 : 0); startEffects(); });
-  appearance.addEventListener('change', draw);
   document.addEventListener('visibilitychange', startEffects);
   // Keep the readable CSS display for this page visit after a GPU failure.
   // Recreating the same failing renderer can otherwise blink indefinitely.

@@ -1,35 +1,19 @@
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
   font-family: Arial, Helvetica, sans-serif;
-  --page: #fafafa;
-  --ink: #1b1b1a;
-  --muted: #737373;
-  --intro: #5f5f5b;
-  --trace: #c8c8c8;
-  --glass: #eeeeee;
-  --phosphor: #353535;
-  --roll: #000;
-  --raster: #ffffff66;
-  --glow: #33333344;
-  --echo: #33333322;
+  --page: #030303;
+  --ink: #e1e1e1;
+  --muted: #999999;
+  --intro: #c3c3c3;
+  --trace: #494949;
+  --glass: #1c1c1c;
+  --phosphor: #e2e2e2;
+  --roll: #fff;
+  --raster: #00000055;
+  --glow: #ffffff44;
+  --echo: #ffffff22;
   background: var(--page);
   color: var(--ink);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --page: #030303;
-    --ink: #e1e1e1;
-    --muted: #999999;
-    --intro: #c3c3c3;
-    --trace: #494949;
-    --glass: #1c1c1c;
-    --phosphor: #e2e2e2;
-    --roll: #fff;
-    --raster: #00000055;
-    --glow: #ffffff44;
-    --echo: #ffffff22;
-  }
 }
 
 * { box-sizing: border-box; }
@@ -116,7 +100,7 @@ a:focus, button:focus { outline: none; }
 .project-description { margin: 0; font-size: 16px; line-height: 1.7; }
 /* Reserve each word's final space while its letters are revealed. */
 .typing-word { display: inline-block; text-decoration: inherit; }
-.screen-surface:not(.is-rendered) .screen-content { text-shadow: 0 0 2px var(--glow), 1.5px 0 1px var(--echo); }
+.screen-surface:not(.is-rendered) .screen-content { text-shadow: 0 0 1.8px var(--glow), 1.25px 0 1px var(--echo); }
 .screen-surface:not(.is-rendered)::before,
 .screen-surface:not(.is-rendered)::after { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .screen-surface:not(.is-rendered)::before {
@@ -127,7 +111,7 @@ a:focus, button:focus { outline: none; }
 .screen-surface:not(.is-rendered)::after {
   background-image: repeating-linear-gradient(transparent 0 2px, var(--raster) 2px 3px), var(--grain-image);
   background-size: auto, 96px 96px;
-  opacity: .513;
+  opacity: .48;
   animation: crt-grain .31s steps(4, end) infinite;
 }
 .site[data-effects-paused="true"] .screen-surface::before,
@@ -135,17 +119,15 @@ a:focus, button:focus { outline: none; }
 .screen-surface.is-rendered { border-radius: 0; background: transparent; overflow: visible; }
 .screen-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .screen-shadow { display: none; }
-@media (prefers-color-scheme: dark) {
-  .screen-surface:not(.is-rendered) .screen-shadow {
-    display: block;
-    position: absolute;
-    inset: 0;
-    z-index: 3;
-    border-radius: inherit;
-    box-shadow: inset 0 0 16px 8px var(--page),
-      inset 0 0 clamp(48px, 8vw, 130px) clamp(12px, 2vw, 32px) var(--page);
-    pointer-events: none;
-  }
+.screen-surface:not(.is-rendered) .screen-shadow {
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  box-shadow: inset 0 0 16px 8px var(--page),
+    inset 0 0 clamp(48px, 8vw, 130px) clamp(12px, 2vw, 32px) var(--page);
+  pointer-events: none;
 }
 /* Keep real text and native controls accessible above their painted counterparts. */
 .is-rendered .screen-content,
