@@ -7,6 +7,7 @@
   const content = surface.querySelector('.screen-content');
   const main = content.querySelector('main');
   const canvas = surface.querySelector('.screen-canvas');
+  const video = surface.querySelector('.project-video');
   const link = panel.querySelector('.project-link');
   const description = panel.querySelector('.project-description');
   const status = document.getElementById('project-status');
@@ -34,6 +35,52 @@
   let base = .11;
   let typingFrame = 0;
   let typingWords = [];
+  let videoFade = { from: 0, to: 0, started: 0 };
+  let videoPauseTimer = 0;
+
+  function videoAmount() {
+    if (reducedMotion.matches) return 0;
+    const duration = videoFade.to ? 2200 : 850;
+    const progress = Math.min(1, (performance.now() - videoFade.started) / duration);
+    const eased = videoFade.to ? progress * progress * (3 - 2 * progress) : 1 - Math.pow(1 - progress, 3);
+    return videoFade.from + (videoFade.to - videoFade.from) * eased;
+  }
+
+  function fadeVideo(visible) {
+    const target = visible ? 1 : 0;
+    if (videoFade.to === target) return;
+    videoFade = { from: videoAmount(), to: target, started: performance.now() };
+    surface.classList.toggle('has-video', visible);
+  }
+
+  function syncVideo() {
+    clearTimeout(videoPauseTimer);
+    if (!active?.video || reducedMotion.matches) {
+      fadeVideo(false);
+      if (reducedMotion.matches || document.hidden || !inView) video.pause();
+      else videoPauseTimer = setTimeout(() => video.pause(), 850);
+      return;
+    }
+    if (document.hidden || !inView) { video.pause(); return; }
+    const requestedSource = active.video;
+    if (video.getAttribute('src') !== requestedSource) {
+      // Withhold the source entirely until selection; preload is only a hint.
+      fadeVideo(false);
+      video.src = requestedSource;
+      video.load();
+    }
+    video.play().then(() => {
+      // play() also resolves when reopening during the fade-out, while the
+      // video is still playing and will not emit another playing event.
+      if (active?.video === requestedSource && !reducedMotion.matches && !document.hidden && inView) {
+        fadeVideo(true);
+      }
+    }).catch(() => {
+      if (video.getAttribute('src') === requestedSource && video.paused) fadeVideo(false);
+    });
+  }
+
+  video.addEventListener('error', () => fadeVideo(false));
 
   function revealWord(word, count) {
     if (word.visible === count) return;
@@ -128,6 +175,9 @@
  precision highp float;
  varying vec2 v_uv;
  uniform sampler2D u_texture;
+ uniform sampler2D u_video;
+ uniform vec2 u_videoScale;
+ uniform float u_videoFade;
  uniform vec2 u_density;
  uniform float u_scan,u_time,u_roll,u_noise,u_period,u_wear,u_base,u_letterGrit;
  float hash(vec2 p){vec3 q=fract(vec3(p.xyx)*.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}
@@ -165,9 +215,18 @@
    vec3 bloom=(texture2D(u_texture,sampleUV+vec2(.0045,.0025)/u_density).rgb
              +texture2D(u_texture,sampleUV-vec2(.0045,.0025)/u_density).rgb)*.5;
    c+=max(vec3(0.),bloom-vec3(u_base))*u_wear*.12;
+   float inkMask=smoothstep(.045,.34,sharp.r-u_base);
+   // The moving image shares the glass curvature and tracking distortion.
+   // Keep the lettering bright while the footage stays below the static.
+   vec2 videoUV=(sampleUV-.5)*u_videoScale+.5;
+   vec3 footage=texture2D(u_video,videoUV).rgb*.6
+               +texture2D(u_video,videoUV-vec2(.0022,0.)).rgb*.2
+               +texture2D(u_video,videoUV+vec2(.0022,0.)).rgb*.2;
+   float luminance=dot(footage,vec3(.2126,.7152,.0722));
+   luminance=clamp((luminance-.5)*1.25+.5,0.,1.)*.85;
+   c+=vec3((luminance-u_base)*u_videoFade*(1.-inkMask));
    float raster=.5+.5*sin(v_uv.y*300.*u_density.y*6.283185);
    c=mix(c,vec3(u_base),u_scan*(1.-raster)*(.10+.23*u_wear));
-   float inkMask=smoothstep(.045,.34,sharp.r-u_base);
    float letterFleck=hash(floor(sampleUV*vec2(620.,510.)*u_density)+vec2(83.,11.));
    float wornPatches=smoothstep(.84,.97,letterFleck)*.62;
    float unevenPhosphor=.88+.16*hash(floor(sampleUV*vec2(240.,310.)*u_density)+vec2(4.,19.));
@@ -199,6 +258,9 @@
     const buffers = [];
     let program;
     let texture;
+    let videoTexture;
+    let uploadedVideoTime = -1;
+    let uploadedVideoSource = '';
     try {
       for (const [type, code] of [[gl.VERTEX_SHADER, vertexShader], [gl.FRAGMENT_SHADER, fragmentShader]]) {
         const shader = gl.createShader(type);
@@ -243,13 +305,25 @@
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       gl.uniform1i(gl.getUniformLocation(program, 'u_texture'), 0);
+      videoTexture = gl.createTexture();
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, videoTexture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+        new Uint8Array([0, 0, 0, 255]));
+      gl.uniform1i(gl.getUniformLocation(program, 'u_video'), 1);
+      gl.activeTexture(gl.TEXTURE0);
       const uniforms = {};
-      for (const name of ['bulge', 'density', 'scan', 'time', 'roll', 'noise', 'period', 'wear', 'base', 'letterGrit']) {
+      for (const name of ['bulge', 'density', 'scan', 'time', 'roll', 'noise', 'period', 'wear', 'base', 'letterGrit', 'videoScale', 'videoFade']) {
         uniforms[name] = gl.getUniformLocation(program, 'u_' + name);
       }
       const set = (name, value) => gl.uniform1f(uniforms[name], value);
       return {
         upload() {
+          gl.activeTexture(gl.TEXTURE0);
           gl.bindTexture(gl.TEXTURE_2D, texture);
           gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
         },
@@ -269,6 +343,17 @@
         },
         paint() {
           if (gl.isContextLost()) return false;
+          const amount = videoAmount();
+          const ready = video.readyState >= 2 && video.videoWidth > 0;
+          if (amount > 0 && ready &&
+              (uploadedVideoTime !== video.currentTime || uploadedVideoSource !== video.currentSrc)) {
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, videoTexture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+            gl.activeTexture(gl.TEXTURE0);
+            uploadedVideoTime = video.currentTime;
+            uploadedVideoSource = video.currentSrc;
+          }
           gl.clearColor(0, 0, 0, 0);
           gl.clear(gl.COLOR_BUFFER_BIT);
           gl.useProgram(program);
@@ -281,6 +366,11 @@
           set('wear', effects.wear);
           set('base', base);
           set('letterGrit', effects.letterGrit);
+          set('videoFade', ready ? amount * .21 : 0);
+          const videoAspect = ready ? video.videoWidth / video.videoHeight : 1;
+          const screenAspect = screenWidth / screenHeight;
+          gl.uniform2f(uniforms.videoScale, Math.min(1, screenAspect / videoAspect),
+            Math.min(1, videoAspect / screenAspect));
           gl.drawArrays(gl.TRIANGLES, 0, positions.length / 2);
           return !gl.isContextLost();
         }
@@ -288,6 +378,7 @@
     } catch (error) {
       buffers.forEach(buffer => gl.deleteBuffer(buffer));
       if (texture) gl.deleteTexture(texture);
+      if (videoTexture) gl.deleteTexture(videoTexture);
       if (program) gl.deleteProgram(program);
       console.warn('CRT rendering unavailable; using the text display.', error);
       return null;
@@ -475,6 +566,7 @@
 
   function startEffects() {
     stopEffects();
+    syncVideo();
     if (reducedMotion.matches || document.hidden || !inView) return;
     site.dataset.effectsPaused = 'false';
     if (!renderer || compact.matches) return;
@@ -495,6 +587,7 @@
   function close(returnFocus = true) {
     const previous = active;
     active = null;
+    syncVideo();
     main.inert = false;
     panel.inert = true;
     site.dataset.open = 'false';
@@ -528,7 +621,7 @@
   // Keep ordinary links in the HTML so navigation also works without JavaScript.
   document.querySelectorAll('a[data-project]').forEach(anchor => {
     const project = { name: anchor.querySelector('.project-name').textContent,
-      url: anchor.href, description: anchor.dataset.description };
+      url: anchor.href, description: anchor.dataset.description, video: anchor.dataset.video };
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'project-trigger';
