@@ -104,9 +104,10 @@ a:focus, button:focus { outline: none; }
 .screen-surface:not(.is-rendered)::before,
 .screen-surface:not(.is-rendered)::after { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .screen-surface:not(.is-rendered)::before {
-  background: linear-gradient(transparent 38%, var(--roll) 49%, transparent 62%);
+  z-index: 0;
+  background: linear-gradient(173deg, transparent 38%, var(--roll) 49%, transparent 62%);
   opacity: .085;
-  animation: crt-roll 6.5s linear infinite;
+  animation: crt-roll 5.2s linear infinite;
 }
 .screen-surface:not(.is-rendered)::after {
   background-image: repeating-linear-gradient(transparent 0 2px, var(--raster) 2px 3px), var(--grain-image);
@@ -142,7 +143,7 @@ a:focus, button:focus { outline: none; }
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
 }
-@keyframes crt-roll { from { transform: translateY(-100%); } to { transform: translateY(100%); } }
+@keyframes crt-roll { from { transform: translateY(100%); } to { transform: translateY(-100%); } }
 @keyframes crt-grain {
   0% { background-position: 0 0; }
   25% { background-position: 19px -31px; }

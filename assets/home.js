@@ -12,7 +12,7 @@
   const status = document.getElementById('project-status');
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const compact = matchMedia('(max-width: 520px)');
-  const effects = { curvature: .15, rolling: .85, static: .57, period: 6.5, wear: .75, letterGrit: .65 };
+  const effects = { curvature: .15, rolling: .85, static: .57, period: 5.2, wear: .75, letterGrit: .65 };
   const projects = new Map();
   const words = new WeakMap();
   const visitedViews = new WeakSet();
@@ -137,8 +137,10 @@
    float sd=length(max(p,0.0))+min(max(p.x,p.y),0.0)-.40;
    float mask=smoothstep(0.0,.14,-sd);
    if(mask<=0.0)discard;
-   float rollY=fract(u_time/u_period+.32)*1.4-.2;
-   float dy=v_uv.y-rollY;
+   float rollY=1.2-fract(u_time/u_period+.32)*1.4;
+   // Tilt the light about seven degrees, independent of the screen's aspect ratio.
+   float rollSlope=.123*(440.*u_density.x)/(374.*u_density.y);
+   float dy=v_uv.y-rollY+(v_uv.x-.5)*rollSlope;
    float band=exp(-dy*dy/.0064)*u_roll;
    float trailing=exp(-(dy-.065)*(dy-.065)/.0012)*u_roll;
    float tick=floor(u_time*16.0);
@@ -149,7 +151,6 @@
    float trackDistance=(v_uv.y-trackingY)/.013;
    float tracking=exp(-trackDistance*trackDistance)*burst*u_wear;
    vec2 sampleUV=v_uv;
-   sampleUV.x+=sin(v_uv.y*95.0+u_time*6.0)*band*.0022/u_density.x;
    sampleUV.x+=((rowNoise-.5)*.0018*u_wear+tracking*.009)/u_density.x;
    vec2 samples=vec2(520.,360.)*u_density;
    vec2 coarseUV=(floor(sampleUV*samples)+.5)/samples;
@@ -172,7 +173,8 @@
    float unevenPhosphor=.88+.16*hash(floor(sampleUV*vec2(240.,310.)*u_density)+vec2(4.,19.));
    vec3 wornInk=vec3(u_base)+(c-vec3(u_base))*unevenPhosphor*(1.-wornPatches);
    c=mix(c,wornInk,inkMask*u_letterGrit);
-   c+=vec3(band*.080-trailing*.030);
+   // Keep the rolling light on the glass without displacing or relighting the ink.
+   c+=vec3((band*.080-trailing*.030)*(1.-inkMask));
    float grain=hash(floor(v_uv*vec2(360.,300.)*u_density)+vec2(tick*17.,tick*31.));
    float fineGrain=hash(floor(v_uv*vec2(720.,600.)*u_density)+vec2(tick*11.,tick*7.));
    c+=vec3(((grain-.5)*.20+(fineGrain-.5)*.07)*u_noise);
