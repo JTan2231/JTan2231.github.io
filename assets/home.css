@@ -105,9 +105,9 @@ a:focus, button:focus { outline: none; }
 .screen-surface:not(.is-rendered)::after { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .screen-surface:not(.is-rendered)::before {
   z-index: 0;
-  background: linear-gradient(173deg, transparent 38%, var(--roll) 49%, transparent 62%);
+  background: linear-gradient(177deg, transparent 38%, var(--roll) 49%, transparent 62%);
   opacity: .085;
-  animation: crt-roll 5.2s linear infinite;
+  animation: crt-roll 4.6s linear infinite;
 }
 .screen-surface:not(.is-rendered)::after {
   background-image: repeating-linear-gradient(transparent 0 2px, var(--raster) 2px 3px), var(--grain-image);

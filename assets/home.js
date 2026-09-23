@@ -12,7 +12,7 @@
   const status = document.getElementById('project-status');
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const compact = matchMedia('(max-width: 520px)');
-  const effects = { curvature: .15, rolling: .85, static: .57, period: 5.2, wear: .75, letterGrit: .65 };
+  const effects = { curvature: .15, rolling: .85, static: .57, period: 4.6, wear: .75, letterGrit: .65 };
   const projects = new Map();
   const words = new WeakMap();
   const visitedViews = new WeakSet();
@@ -138,8 +138,8 @@
    float mask=smoothstep(0.0,.14,-sd);
    if(mask<=0.0)discard;
    float rollY=1.2-fract(u_time/u_period+.32)*1.4;
-   // Tilt the light about seven degrees, independent of the screen's aspect ratio.
-   float rollSlope=.123*(440.*u_density.x)/(374.*u_density.y);
+   // Tilt the light three degrees, independent of the screen's aspect ratio.
+   float rollSlope=.052408*(440.*u_density.x)/(374.*u_density.y);
    float dy=v_uv.y-rollY+(v_uv.x-.5)*rollSlope;
    float band=exp(-dy*dy/.0064)*u_roll;
    float trailing=exp(-(dy-.065)*(dy-.065)/.0012)*u_roll;
