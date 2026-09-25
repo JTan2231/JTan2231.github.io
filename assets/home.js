@@ -19,24 +19,59 @@
   const visitedViews = new WeakSet();
   const source = document.createElement('canvas');
   const textContext = source.getContext('2d');
+  const textLayers = [main, panel].map(root => {
+    const image = document.createElement('canvas');
+    return { root, image, context: image.getContext('2d'), bounds: null, dirty: true };
+  });
+  const patch = document.createElement('canvas');
+  const patchContext = patch.getContext('2d');
+  const maxRenderPixels = 1920 * 1080;
+  let patchBounds = null;
+  let layoutDirty = true;
+  let decorationsDirty = true;
+  let sceneDirty = true;
+  let geometryDirty = true;
   let controls = [];
   let controlBounds = [];
   let textRuns = [];
   let screenWidth = 0;
   let screenHeight = 0;
   let depth = 0;
-  let transitionFrame = 0;
+  let transition = null;
   let active = null;
   let renderer = null;
   let frameId = 0;
-  let lastFrame = 0;
+  let nextFrame = 0;
+  let lastTick = 0;
   let elapsed = 0;
   let inView = false;
   let base = .11;
-  let typingFrame = 0;
+  let typing = null;
   let typingWords = [];
   let videoFade = { from: 0, to: 0, started: 0 };
   let videoPauseTimer = 0;
+  let videoFrameId = 0;
+  let videoDirty = true;
+
+  function watchVideoFrames() {
+    if (!video.requestVideoFrameCallback || videoFrameId || video.paused || document.hidden || !inView) return;
+    videoFrameId = video.requestVideoFrameCallback(() => {
+      videoFrameId = 0;
+      videoDirty = true;
+      watchVideoFrames();
+    });
+  }
+
+  function stopVideoFrames() {
+    if (videoFrameId) video.cancelVideoFrameCallback(videoFrameId);
+    videoFrameId = 0;
+  }
+
+  video.addEventListener('playing', watchVideoFrames);
+  video.addEventListener('pause', stopVideoFrames);
+  video.addEventListener('emptied', () => { stopVideoFrames(); videoDirty = true; });
+  video.addEventListener('loadeddata', () => { videoDirty = true; });
+  video.addEventListener('seeked', () => { videoDirty = true; });
 
   function videoAmount() {
     if (reducedMotion.matches) return 0;
@@ -85,6 +120,8 @@
   function revealWord(word, count) {
     if (word.visible === count) return;
     word.visible = count;
+    textLayers[word.detail ? 1 : 0].dirty = true;
+    sceneDirty = true;
     if (!count) {
       word.element.style.clipPath = 'inset(0 100% 0 0)';
     } else if (count === word.characters.length) {
@@ -100,8 +137,7 @@
   }
 
   function finishTyping() {
-    cancelAnimationFrame(typingFrame);
-    typingFrame = 0;
+    typing = null;
     typingWords.forEach(word => revealWord(word, word.characters.length));
     typingWords = [];
   }
@@ -126,7 +162,7 @@
         element.className = 'typing-word';
         element.textContent = part;
         const characters = Array.from(part);
-        words.set(element, { element, characters, visible: characters.length });
+        words.set(element, { element, characters, visible: characters.length, detail: root === panel });
         fragment.append(element);
       }
       node.replaceWith(fragment);
@@ -141,20 +177,19 @@
       length += word.characters.length + 1;
       revealWord(word, 0);
     }
-    const started = performance.now();
-    let previous = -1;
-    function frame(now) {
-      const count = Math.floor((now - started) / 20);
-      if (count !== previous) {
-        typingWords.forEach(word => revealWord(word,
-          Math.max(0, Math.min(word.characters.length, count - word.start))));
-        paintScene();
-        previous = count;
-      }
-      if (count < length) typingFrame = requestAnimationFrame(frame);
-      else finishTyping();
+    typing = { started: performance.now(), length, previous: -1 };
+    requestRender();
+  }
+
+  function updateTyping(now) {
+    if (!typing) return;
+    const count = Math.floor((now - typing.started) / 20);
+    if (count !== typing.previous) {
+      typingWords.forEach(word => revealWord(word,
+        Math.max(0, Math.min(word.characters.length, count - word.start))));
+      typing.previous = count;
     }
-    typingFrame = requestAnimationFrame(frame);
+    if (count >= typing.length) finishTyping();
   }
 
   const vertexShader = `
@@ -218,13 +253,15 @@
    float inkMask=smoothstep(.045,.34,sharp.r-u_base);
    // The moving image shares the glass curvature and tracking distortion.
    // Keep the lettering bright while the footage stays below the static.
-   vec2 videoUV=(sampleUV-.5)*u_videoScale+.5;
-   vec3 footage=texture2D(u_video,videoUV).rgb*.6
-               +texture2D(u_video,videoUV-vec2(.0022,0.)).rgb*.2
-               +texture2D(u_video,videoUV+vec2(.0022,0.)).rgb*.2;
-   float luminance=dot(footage,vec3(.2126,.7152,.0722));
-   luminance=clamp((luminance-.5)*1.25+.5,0.,1.)*.85;
-   c+=vec3((luminance-u_base)*u_videoFade*(1.-inkMask));
+   if(u_videoFade>0.){
+     vec2 videoUV=(sampleUV-.5)*u_videoScale+.5;
+     vec3 footage=texture2D(u_video,videoUV).rgb*.6
+                 +texture2D(u_video,videoUV-vec2(.0022,0.)).rgb*.2
+                 +texture2D(u_video,videoUV+vec2(.0022,0.)).rgb*.2;
+     float luminance=dot(footage,vec3(.2126,.7152,.0722));
+     luminance=clamp((luminance-.5)*1.25+.5,0.,1.)*.85;
+     c+=vec3((luminance-u_base)*u_videoFade*(1.-inkMask));
+   }
    float raster=.5+.5*sin(v_uv.y*300.*u_density.y*6.283185);
    c=mix(c,vec3(u_base),u_scan*(1.-raster)*(.10+.23*u_wear));
    float letterFleck=hash(floor(sampleUV*vec2(620.,510.)*u_density)+vec2(83.,11.));
@@ -250,16 +287,16 @@
  }`;
 
   function createRenderer() {
-    const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: false, antialias: true });
+    const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: false, antialias: false, depth: false });
     // Safari can return a context whose drawing buffer could not be allocated.
-    if (!gl || gl.isContextLost() || !textContext ||
+    if (!gl || gl.isContextLost() || !textContext || !patchContext || textLayers.some(layer => !layer.context) ||
         gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) return null;
     const shaders = [];
     const buffers = [];
     let program;
     let texture;
     let videoTexture;
-    let uploadedVideoTime = -1;
+    let uploadedVideoFrame = -1;
     let uploadedVideoSource = '';
     try {
       for (const [type, code] of [[gl.VERTEX_SHADER, vertexShader], [gl.FRAGMENT_SHADER, fragmentShader]]) {
@@ -322,15 +359,22 @@
       }
       const set = (name, value) => gl.uniform1f(uniforms[name], value);
       return {
-        upload() {
+        uploadBackground() {
           gl.activeTexture(gl.TEXTURE0);
           gl.bindTexture(gl.TEXTURE_2D, texture);
           gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
         },
+        uploadText() {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, texture);
+          gl.texSubImage2D(gl.TEXTURE_2D, 0, patchBounds.x, patchBounds.y,
+            gl.RGBA, gl.UNSIGNED_BYTE, patch);
+        },
         resize(width, height) {
-          const ratio = Math.min(devicePixelRatio || 1, 2);
-          const pixelWidth = Math.round(width * ratio);
-          const pixelHeight = Math.round(height * ratio);
+          // Bound the full-screen fragment work, including on large/high-DPI displays.
+          const ratio = Math.min(devicePixelRatio || 1, 1.5, Math.sqrt(maxRenderPixels / (width * height)));
+          const pixelWidth = Math.max(1, Math.floor(width * ratio));
+          const pixelHeight = Math.max(1, Math.floor(height * ratio));
           if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
           if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
           if (gl.isContextLost() ||
@@ -345,13 +389,18 @@
           if (gl.isContextLost()) return false;
           const amount = videoAmount();
           const ready = video.readyState >= 2 && video.videoWidth > 0;
+          // Older browsers can use the decoded-frame counter. Both bundled
+          // montages are 24fps, which also bounds the final clock-based fallback.
+          const decodedFrame = video.requestVideoFrameCallback ? 0 :
+            (video.getVideoPlaybackQuality?.().totalVideoFrames ?? Math.floor(video.currentTime * 24));
           if (amount > 0 && ready &&
-              (uploadedVideoTime !== video.currentTime || uploadedVideoSource !== video.currentSrc)) {
+              (videoDirty || uploadedVideoFrame !== decodedFrame || uploadedVideoSource !== video.currentSrc)) {
             gl.activeTexture(gl.TEXTURE1);
             gl.bindTexture(gl.TEXTURE_2D, videoTexture);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
             gl.activeTexture(gl.TEXTURE0);
-            uploadedVideoTime = video.currentTime;
+            videoDirty = false;
+            uploadedVideoFrame = decodedFrame;
             uploadedVideoSource = video.currentSrc;
           }
           gl.clearColor(0, 0, 0, 0);
@@ -389,22 +438,55 @@
 
   function plane(detail) {
     return detail
-      ? { scale: 900 / (900 - (1 - depth) * 60), opacity: Math.max(0, (depth - .18) / .82) }
+      ? { scale: 900 / (900 - (1 - depth) * 60), opacity: Math.max(0, Math.min(1, (depth - .18) / .82)) }
       : { scale: 900 / (900 + depth * 180), opacity: 1 - depth * .8 };
   }
 
-  function fadedColor(color, opacity) {
-    const [red, green, blue, alpha = 1] = color.match(/[\d.]+/g).map(Number);
-    return `rgba(${red}, ${green}, ${blue}, ${alpha * opacity})`;
+  function prepareTextLayers() {
+    const ratioX = source.width / screenWidth;
+    const ratioY = source.height / screenHeight;
+    const regions = [];
+    textLayers.forEach((layer, index) => {
+      const runs = textRuns.filter(run => Number(run.detail) === index);
+      layer.dirty = true;
+      layer.bounds = null;
+      if (!runs.length) return;
+      // Include the glow, glyph overhang, and underlines before scaling a plane.
+      const x = Math.floor((Math.min(...runs.map(run => run.x)) - 8) * ratioX);
+      const y = Math.floor((Math.min(...runs.map(run => run.top)) - 8) * ratioY);
+      const right = Math.ceil((Math.max(...runs.map(run => run.x + run.width)) + 8) * ratioX);
+      const bottom = Math.ceil((Math.max(...runs.map(run => run.bottom)) + 8) * ratioY);
+      layer.bounds = { x, y, width: right - x, height: bottom - y };
+      if (layer.image.width !== right - x) layer.image.width = right - x;
+      if (layer.image.height !== bottom - y) layer.image.height = bottom - y;
+      // The depth animation is monotonic: its two endpoints cover every frame.
+      for (const scale of index ? [1, 900 / 840] : [900 / 1080, 1]) {
+        regions.push({
+          left: source.width / 2 + (x - source.width / 2) * scale,
+          top: source.height / 2 + (y - source.height / 2) * scale,
+          right: source.width / 2 + (right - source.width / 2) * scale,
+          bottom: source.height / 2 + (bottom - source.height / 2) * scale
+        });
+      }
+    });
+    patchBounds = null;
+    if (!regions.length) return;
+    const x = Math.max(0, Math.floor(Math.min(...regions.map(region => region.left))) - 2);
+    const y = Math.max(0, Math.floor(Math.min(...regions.map(region => region.top))) - 2);
+    const right = Math.min(source.width, Math.ceil(Math.max(...regions.map(region => region.right))) + 2);
+    const bottom = Math.min(source.height, Math.ceil(Math.max(...regions.map(region => region.bottom))) + 2);
+    if (right <= x || bottom <= y) return;
+    patchBounds = { x, y, width: right - x, height: bottom - y };
+    if (patch.width !== patchBounds.width) patch.width = patchBounds.width;
+    if (patch.height !== patchBounds.height) patch.height = patchBounds.height;
   }
 
-  function buildText() {
+  function buildBackground() {
     const style = getComputedStyle(document.documentElement);
     const background = style.getPropertyValue('--glass').trim();
     base = parseInt(background.slice(1, 3), 16) / 255;
     const ctx = textContext;
     ctx.setTransform(source.width / screenWidth, 0, 0, source.height / screenHeight, 0, 0);
-    ctx.clearRect(0, 0, screenWidth, screenHeight);
     ctx.fillStyle = background;
     ctx.fillRect(0, 0, screenWidth, screenHeight);
     const glare = ctx.createRadialGradient(screenWidth * .43, screenHeight * .21, 0,
@@ -413,33 +495,56 @@
     glare.addColorStop(1, 'rgba(0,0,0,.065)');
     ctx.fillStyle = glare;
     ctx.fillRect(0, 0, screenWidth, screenHeight);
-    ctx.textBaseline = 'alphabetic';
-    for (const run of textRuns) {
-      const text = run.word ? run.word.characters.slice(0, run.word.visible).join('') : run.text;
-      if (!text) continue;
-      const { scale, opacity } = plane(run.detail);
-      ctx.save();
-      ctx.translate(screenWidth / 2, screenHeight / 2);
-      ctx.scale(scale, scale);
-      ctx.translate(-screenWidth / 2, -screenHeight / 2);
-      ctx.font = run.font;
-      ctx.letterSpacing = run.spacing;
-      // Safari ignores globalAlpha for text with a blurred shadow. Fade both
-      // colors explicitly so the lettering and its glow recede together.
-      ctx.fillStyle = fadedColor(run.color, opacity);
-      ctx.shadowColor = ctx.fillStyle;
-      ctx.shadowBlur = 1.2;
-      ctx.fillText(text, run.x, run.y);
-      ctx.shadowBlur = 0;
-      if (run.underline) {
-        ctx.fillStyle = fadedColor(run.color, opacity * .6);
-        const width = text === run.text ? run.width : ctx.measureText(text).width;
-        ctx.fillRect(run.x, run.y + 5, width, 1);
+    // Also clears any text left outside the new crop after a layout change.
+    renderer.uploadBackground();
+  }
+
+  function buildText() {
+    if (!patchBounds) return;
+    textLayers.forEach((layer, index) => {
+      if (!layer.bounds || !layer.dirty) return;
+      const ctx = layer.context;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, layer.image.width, layer.image.height);
+      ctx.setTransform(source.width / screenWidth, 0, 0, source.height / screenHeight,
+        -layer.bounds.x, -layer.bounds.y);
+      ctx.textBaseline = 'alphabetic';
+      for (const run of textRuns) {
+        if (Number(run.detail) !== index) continue;
+        const text = run.word ? run.word.characters.slice(0, run.word.visible).join('') : run.text;
+        if (!text) continue;
+        ctx.font = run.font;
+        ctx.letterSpacing = run.spacing;
+        ctx.fillStyle = run.color;
+        ctx.shadowColor = run.color;
+        ctx.shadowBlur = 1.2;
+        ctx.fillText(text, run.x, run.y);
+        ctx.shadowBlur = 0;
+        if (run.underline) {
+          ctx.globalAlpha = .6;
+          const width = text === run.text ? run.width : ctx.measureText(text).width;
+          ctx.fillRect(run.x, run.y + 5, width, 1);
+          ctx.globalAlpha = 1;
+        }
       }
-      ctx.restore();
-    }
+      layer.dirty = false;
+    });
+    const ctx = patchContext;
+    const { x, y, width, height } = patchBounds;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
-    renderer.upload();
+    ctx.drawImage(source, x, y, width, height, 0, 0, width, height);
+    textLayers.forEach((layer, index) => {
+      if (!layer.bounds) return;
+      const { scale, opacity } = plane(index === 1);
+      if (!opacity) return;
+      ctx.setTransform(scale, 0, 0, scale,
+        (1 - scale) * source.width / 2 - x, (1 - scale) * source.height / 2 - y);
+      ctx.globalAlpha = opacity;
+      ctx.drawImage(layer.image, layer.bounds.x, layer.bounds.y);
+    });
+    // Only the text region changes; the rest of the GPU texture stays cached.
+    renderer.uploadText();
   }
 
   function projectPoint(x, y) {
@@ -453,6 +558,11 @@
   }
 
   function draw() {
+    layoutDirty = true;
+    requestRender();
+  }
+
+  function measureScene() {
     // Measure ordinary HTML first; it also remains the complete fallback display.
     surface.classList.remove('is-rendered');
     controls.forEach(control => { control.style.transform = ''; });
@@ -463,9 +573,8 @@
     screenHeight = surface.clientHeight;
     if (!screenWidth || !screenHeight) return;
     if (!renderer.resize(screenWidth, screenHeight)) { useTextDisplay(); return; }
-    const ratio = Math.min(devicePixelRatio || 1, 2);
-    source.width = Math.round(screenWidth * ratio);
-    source.height = Math.round(screenHeight * ratio);
+    if (source.width !== canvas.width) source.width = canvas.width;
+    if (source.height !== canvas.height) source.height = canvas.height;
     const origin = surface.getBoundingClientRect();
     content.classList.add('is-measuring');
     const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT);
@@ -490,9 +599,11 @@
         if (!rect.width || !rect.height) continue;
         textRuns.push({ text: match[0], font: style.font,
           spacing: style.letterSpacing === 'normal' ? '0px' : style.letterSpacing,
-          color: style.color, x: rect.left - origin.left,
+          color: style.color, normalColor: style.color, x: rect.left - origin.left,
           y: rect.top - origin.top + (rect.height - ascent - descent) / 2 + ascent,
+          top: rect.top - origin.top, bottom: rect.bottom - origin.top,
           width: rect.width, underline: decoration.textDecorationLine.includes('underline'), word,
+          control: element.closest('a, button'), projectName: !!element.closest('.project-name'),
           detail: panel.contains(element) });
       }
     }
@@ -502,11 +613,39 @@
         width: rect.width, height: rect.height, detail: panel.contains(control) };
     });
     content.classList.remove('is-measuring');
-    paintScene();
-    if (renderer) surface.classList.add('is-rendered');
+    prepareTextLayers();
+    buildBackground();
+    decorationsDirty = sceneDirty = geometryDirty = true;
+    surface.classList.add('is-rendered');
   }
 
-  function paintScene() {
+  function updateDecorations() {
+    const style = getComputedStyle(document.documentElement);
+    const muted = style.getPropertyValue('--muted').trim();
+    const phosphor = style.getPropertyValue('--phosphor').trim();
+    for (const run of textRuns) {
+      if (!run.control) continue;
+      const hovered = run.control.matches(':hover');
+      const focused = run.control.matches(':focus-visible');
+      const closeControl = run.control.classList.contains('project-close');
+      const underline = run.projectName
+        ? hovered || focused || run.control.getAttribute('aria-expanded') === 'true'
+        : closeControl ? focused : run.control.classList.contains('project-link');
+      const color = closeControl ? (hovered ? phosphor : muted) : run.normalColor;
+      if (run.underline === underline && run.color === color) continue;
+      run.underline = underline;
+      run.color = color;
+      textLayers[run.detail ? 1 : 0].dirty = true;
+      sceneDirty = true;
+    }
+  }
+
+  function decorate() {
+    decorationsDirty = true;
+    requestRender();
+  }
+
+  function positionControls() {
     site.style.setProperty('--depth', depth);
     if (!renderer || compact.matches) return;
     // Match native hit targets to both the plane's depth and the curved glass.
@@ -525,41 +664,42 @@
       control.style.transformOrigin = 'top left';
       control.style.transform = `translate(${(left - x) / scale}px, ${(top - y) / scale}px) scale(${width / (originalWidth * scale)}, ${height / (originalHeight * scale)})`;
     }
-    buildText();
-    if (!renderer.paint()) useTextDisplay();
   }
 
   function movePlanes(target) {
-    cancelAnimationFrame(transitionFrame);
-    transitionFrame = 0;
-    const from = depth;
-    const started = performance.now();
-    const duration = reducedMotion.matches ? 0 : 520 * Math.abs(target - from);
-    function frame(now) {
-      const progress = duration ? Math.min(1, (now - started) / duration) : 1;
-      depth = from + (target - from) * (1 - Math.pow(1 - progress, 3));
-      paintScene();
-      if (progress < 1) {
-        transitionFrame = requestAnimationFrame(frame);
-      } else {
-        transitionFrame = 0;
-        if (!target) panel.hidden = true;
-        draw();
+    transition = { from: depth, target, started: performance.now(),
+      duration: reducedMotion.matches ? 0 : 520 * Math.abs(target - depth) };
+    requestRender();
+  }
+
+  function updateTransition(now) {
+    if (!transition) return;
+    const { from, target, started, duration } = transition;
+    const progress = duration ? Math.max(0, Math.min(1, (now - started) / duration)) : 1;
+    depth = from + (target - from) * (1 - Math.pow(1 - progress, 3));
+    geometryDirty = sceneDirty = true;
+    if (progress === 1) {
+      transition = null;
+      if (!target) {
+        panel.hidden = true;
+        layoutDirty = true;
       }
     }
-    frame(started);
   }
 
   function stopEffects() {
     cancelAnimationFrame(frameId);
     frameId = 0;
-    lastFrame = 0;
+    nextFrame = lastTick = 0;
     site.dataset.effectsPaused = 'true';
   }
 
   function useTextDisplay() {
     stopEffects();
     renderer = null;
+    surface.classList.remove('is-rendered');
+    canvas.hidden = true;
+    controls.forEach(control => { control.style.transform = ''; });
     draw();
     startEffects();
   }
@@ -567,21 +707,48 @@
   function startEffects() {
     stopEffects();
     syncVideo();
-    if (reducedMotion.matches || document.hidden || !inView) return;
-    site.dataset.effectsPaused = 'false';
-    if (!renderer || compact.matches) return;
-    function frame(now) {
-      if (document.hidden || !inView || reducedMotion.matches) { stopEffects(); return; }
-      if (!lastFrame) lastFrame = now;
-      const delta = now - lastFrame;
-      if (delta >= 1000 / 30) {
-        elapsed += Math.min(delta, 100) / 1000;
-        lastFrame = now;
-        if (!renderer.paint()) { useTextDisplay(); return; }
-      }
-      frameId = requestAnimationFrame(frame);
+    site.dataset.effectsPaused = String(reducedMotion.matches || document.hidden || !inView);
+    requestRender();
+  }
+
+  function requestRender() {
+    if (!frameId && !document.hidden && inView) frameId = requestAnimationFrame(renderFrame);
+  }
+
+  function renderFrame(now) {
+    frameId = 0;
+    if (document.hidden || !inView) return;
+    const rendered = !!renderer && !compact.matches;
+    const interval = 1000 / (rendered ? 30 : 60);
+    if (nextFrame && now + .1 < nextFrame) { requestRender(); return; }
+    // Retain the deadline remainder instead of drifting below the target rate.
+    nextFrame = nextFrame ? now + interval - Math.max(0, now - nextFrame) % interval : now + interval;
+    if (lastTick && !reducedMotion.matches) elapsed += (now - lastTick) / 1000;
+    lastTick = now;
+    updateTyping(now);
+    updateTransition(now);
+    if (layoutDirty) {
+      layoutDirty = false;
+      measureScene();
     }
-    frameId = requestAnimationFrame(frame);
+    if (decorationsDirty) {
+      decorationsDirty = false;
+      if (renderer && !compact.matches) updateDecorations();
+    }
+    if (geometryDirty) {
+      geometryDirty = false;
+      positionControls();
+    }
+    if (sceneDirty) {
+      sceneDirty = false;
+      if (renderer && !compact.matches) buildText();
+    }
+    if (renderer && !compact.matches && screenWidth && screenHeight) {
+      if (!renderer.paint()) { useTextDisplay(); return; }
+    }
+    if (typing || transition || layoutDirty || sceneDirty ||
+        (renderer && !compact.matches && !reducedMotion.matches)) requestRender();
+    else nextFrame = lastTick = 0;
   }
 
   function close(returnFocus = true) {
@@ -637,11 +804,11 @@
   panel.querySelector('.project-close').addEventListener('click', () => close());
   controls = [...content.querySelectorAll('a, button')];
   controls.forEach(control => {
-    control.addEventListener('pointerenter', draw);
-    control.addEventListener('pointerleave', draw);
+    control.addEventListener('pointerenter', decorate);
+    control.addEventListener('pointerleave', decorate);
   });
-  content.addEventListener('focusin', draw);
-  content.addEventListener('focusout', draw);
+  content.addEventListener('focusin', decorate);
+  content.addEventListener('focusout', decorate);
 
   const grain = document.createElement('canvas');
   grain.width = grain.height = 64;
@@ -675,5 +842,4 @@
   canvas.addEventListener('webglcontextlost', useTextDisplay);
   startTyping(main);
   draw();
-  stopEffects();
 })();
