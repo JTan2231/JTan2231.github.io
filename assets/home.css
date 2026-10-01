@@ -131,7 +131,7 @@ a:focus, button:focus { outline: none; }
   background-image: repeating-linear-gradient(transparent 0 2px, var(--raster) 2px 3px), var(--grain-image);
   background-size: auto, 96px 96px;
   opacity: .48;
-  animation: crt-grain .31s steps(4, end) infinite;
+  animation: crt-grain .31s steps(2, end) infinite;
 }
 .site[data-effects-paused="true"] .screen-surface::before,
 .site[data-effects-paused="true"] .screen-surface::after { animation-play-state: paused; }
