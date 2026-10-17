@@ -1,17 +1,17 @@
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   font-family: Arial, Helvetica, sans-serif;
-  --page: #030303;
-  --ink: #e1e1e1;
-  --muted: #999999;
-  --intro: #c3c3c3;
-  --trace: #494949;
-  --glass: #1c1c1c;
-  --phosphor: #e2e2e2;
-  --roll: #fff;
-  --raster: #00000055;
-  --glow: #ffffff44;
-  --echo: #ffffff22;
+  --page: #ffffff;
+  --ink: #222222;
+  --muted: #666666;
+  --intro: #555555;
+  --trace: #bbbbbb;
+  --glass: #ffffff;
+  --phosphor: #222222;
+  --roll: #222222;
+  --raster: #0000000d;
+  --glow: #00000033;
+  --echo: #00000022;
   background: var(--page);
   color: var(--ink);
 }
@@ -48,7 +48,7 @@ body {
   object-fit: cover;
   pointer-events: none;
   opacity: 0;
-  filter: grayscale(1) contrast(1.25) brightness(.85);
+  filter: contrast(1.25) brightness(.85);
   transition: opacity 850ms ease-out;
 }
 .screen-surface.has-video .project-video {
@@ -56,7 +56,7 @@ body {
   transition-duration: 2200ms;
   transition-timing-function: ease-in-out;
 }
-/* The desktop renderer samples this same video beneath the CRT's text and noise. */
+/* The desktop renderer samples this same video beneath the CRT's worn text. */
 .screen-surface.is-rendered .project-video { opacity: 0; transition: none; }
 .screen-content {
   position: relative;
@@ -124,14 +124,12 @@ a:focus, button:focus { outline: none; }
 .screen-surface:not(.is-rendered)::before {
   z-index: 0;
   background: linear-gradient(177deg, transparent 38%, var(--roll) 49%, transparent 62%);
-  opacity: .085;
+  opacity: .035;
   animation: crt-roll 4.6s linear infinite;
 }
 .screen-surface:not(.is-rendered)::after {
-  background-image: repeating-linear-gradient(transparent 0 2px, var(--raster) 2px 3px), var(--grain-image);
-  background-size: auto, 96px 96px;
+  background-image: repeating-linear-gradient(transparent 0 2px, var(--raster) 2px 3px);
   opacity: .48;
-  animation: crt-grain .31s steps(2, end) infinite;
 }
 .site[data-effects-paused="true"] .screen-surface::before,
 .site[data-effects-paused="true"] .screen-surface::after { animation-play-state: paused; }
@@ -162,13 +160,6 @@ a:focus, button:focus { outline: none; }
   white-space: nowrap;
 }
 @keyframes crt-roll { from { transform: translateY(100%); } to { transform: translateY(-100%); } }
-@keyframes crt-grain {
-  0% { background-position: 0 0; }
-  25% { background-position: 19px -31px; }
-  50% { background-position: -23px 11px; }
-  75% { background-position: 43px 29px; }
-  100% { background-position: -13px -47px; }
-}
 
 @media (max-width: 900px) {
   .screen-content { grid-template-columns: minmax(0, 1fr); gap: 32px; align-content: center; padding: 64px 10%; }

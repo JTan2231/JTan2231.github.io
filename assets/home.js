@@ -13,7 +13,7 @@
   const status = document.getElementById('project-status');
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const compact = matchMedia('(max-width: 520px)');
-  const effects = { curvature: .15, rolling: .85, static: .57, period: 4.6, wear: .75, letterGrit: .65 };
+  const effects = { curvature: .15, rolling: .85, period: 4.6, wear: .75, letterGrit: .65 };
   const projects = new Map();
   const words = new WeakMap();
   const visitedViews = new WeakSet();
@@ -45,7 +45,7 @@
   let lastTick = 0;
   let elapsed = 0;
   let inView = false;
-  let base = .11;
+  let base = 1;
   let typing = null;
   let typingWords = [];
   let videoFade = { from: 0, to: 0, started: 0 };
@@ -214,7 +214,7 @@
  uniform vec2 u_videoScale;
  uniform float u_videoFade;
  uniform vec2 u_density;
- uniform float u_scan,u_time,u_roll,u_noise,u_period,u_wear,u_base,u_letterGrit;
+ uniform float u_scan,u_time,u_roll,u_period,u_wear,u_base,u_letterGrit;
  float hash(vec2 p){vec3 q=fract(vec3(p.xyx)*.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}
  void main(){
    // Fade the entire screen into the page before reaching the mesh boundary.
@@ -249,18 +249,17 @@
    c=mix(c,ghost,u_wear*.095);
    vec3 bloom=(texture2D(u_texture,sampleUV+vec2(.0045,.0025)/u_density).rgb
              +texture2D(u_texture,sampleUV-vec2(.0045,.0025)/u_density).rgb)*.5;
-   c+=max(vec3(0.),bloom-vec3(u_base))*u_wear*.12;
-   float inkMask=smoothstep(.045,.34,sharp.r-u_base);
+   c-=max(vec3(0.),vec3(u_base)-bloom)*u_wear*.12;
+   float inkMask=smoothstep(.045,.34,u_base-sharp.r);
    // The moving image shares the glass curvature and tracking distortion.
-   // Keep the lettering bright while the footage stays below the static.
+   // Keep the dark lettering clear while the footage retains its color.
    if(u_videoFade>0.){
      vec2 videoUV=(sampleUV-.5)*u_videoScale+.5;
      vec3 footage=texture2D(u_video,videoUV).rgb*.6
                  +texture2D(u_video,videoUV-vec2(.0022,0.)).rgb*.2
                  +texture2D(u_video,videoUV+vec2(.0022,0.)).rgb*.2;
-     float luminance=dot(footage,vec3(.2126,.7152,.0722));
-     luminance=clamp((luminance-.5)*1.25+.5,0.,1.)*.85;
-     c+=vec3((luminance-u_base)*u_videoFade*(1.-inkMask));
+     footage=clamp((footage-.5)*1.25+.5,0.,1.)*.85;
+     c+=(footage-vec3(u_base))*u_videoFade*(1.-inkMask);
    }
    float raster=.5+.5*sin(v_uv.y*300.*u_density.y*6.283185);
    c=mix(c,vec3(u_base),u_scan*(1.-raster)*(.10+.23*u_wear));
@@ -270,19 +269,11 @@
    vec3 wornInk=vec3(u_base)+(c-vec3(u_base))*unevenPhosphor*(1.-wornPatches);
    c=mix(c,wornInk,inkMask*u_letterGrit);
    // Keep the rolling light on the glass without displacing or relighting the ink.
-   c+=vec3((band*.080-trailing*.030)*(1.-inkMask));
-   float grain=hash(floor(v_uv*vec2(360.,300.)*u_density)+vec2(tick*17.,tick*31.));
-   float fineGrain=hash(floor(v_uv*vec2(720.,600.)*u_density)+vec2(tick*11.,tick*7.));
-   c+=vec3(((grain-.5)*.20+(fineGrain-.5)*.07)*u_noise);
-   c+=vec3((rowNoise-.5)*.045*u_noise);
-   float specks=step(.988,grain)-step(grain,.012);
-   c+=vec3(specks*.11*u_noise);
-   c+=vec3((grain-.35)*tracking*.18);
+   c-=vec3((band*.040-trailing*.015)*(1.-inkMask));
    float edge=pow(abs(v_uv.x-.5)*2.0,6.0)+pow(abs(v_uv.y-.5)*2.0,6.0);
-   c=mix(c,vec3(u_base*.7),clamp(edge,0.,1.)*(.08+.13*u_wear));
-   // An inset shadow follows the curved glass and darkens the finished image,
-   // including static and rolling highlights, all the way to black at the edge.
-   c*=smoothstep(0.0,.24,-sd);
+   c=mix(c,vec3(u_base*.98),clamp(edge,0.,1.)*(.08+.13*u_wear));
+   // Fade the curved glass into the white page at the edge.
+   c=mix(vec3(u_base),c,smoothstep(0.0,.24,-sd));
    gl_FragColor=vec4(c,mask);
  }`;
 
@@ -354,7 +345,7 @@
       gl.uniform1i(gl.getUniformLocation(program, 'u_video'), 1);
       gl.activeTexture(gl.TEXTURE0);
       const uniforms = {};
-      for (const name of ['bulge', 'density', 'scan', 'time', 'roll', 'noise', 'period', 'wear', 'base', 'letterGrit', 'videoScale', 'videoFade']) {
+      for (const name of ['bulge', 'density', 'scan', 'time', 'roll', 'period', 'wear', 'base', 'letterGrit', 'videoScale', 'videoFade']) {
         uniforms[name] = gl.getUniformLocation(program, 'u_' + name);
       }
       const set = (name, value) => gl.uniform1f(uniforms[name], value);
@@ -381,7 +372,7 @@
               gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) return false;
           gl.viewport(0, 0, canvas.width, canvas.height);
           gl.useProgram(program);
-          // Keep the original grain, scanline, and lettering wear at the same pixel scale.
+          // Keep the scanlines and lettering wear at the same pixel scale.
           gl.uniform2f(uniforms.density, width / 440, height / 374);
           return true;
         },
@@ -410,7 +401,6 @@
           set('scan', 1);
           set('time', reducedMotion.matches ? 0 : elapsed);
           set('roll', reducedMotion.matches ? 0 : effects.rolling);
-          set('noise', effects.static);
           set('period', effects.period);
           set('wear', effects.wear);
           set('base', base);
@@ -492,7 +482,7 @@
     const glare = ctx.createRadialGradient(screenWidth * .43, screenHeight * .21, 0,
       screenWidth * .43, screenHeight * .33, Math.max(screenWidth, screenHeight) * .67);
     glare.addColorStop(0, 'rgba(255,255,255,.045)');
-    glare.addColorStop(1, 'rgba(0,0,0,.065)');
+    glare.addColorStop(1, 'rgba(0,0,0,.018)');
     ctx.fillStyle = glare;
     ctx.fillRect(0, 0, screenWidth, screenHeight);
     // Also clears any text left outside the new crop after a layout change.
@@ -809,21 +799,6 @@
   });
   content.addEventListener('focusin', decorate);
   content.addEventListener('focusout', decorate);
-
-  const grain = document.createElement('canvas');
-  grain.width = grain.height = 64;
-  const grainContext = grain.getContext('2d');
-  if (grainContext) {
-    const pixels = grainContext.createImageData(64, 64);
-    let seed = 2841;
-    for (let i = 0; i < pixels.data.length; i += 4) {
-      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-      pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = seed >>> 24;
-      pixels.data[i + 3] = 85;
-    }
-    grainContext.putImageData(pixels, 0, 0);
-    site.style.setProperty('--grain-image', 'url(' + grain.toDataURL() + ')');
-  }
 
   renderer = createRenderer();
   document.addEventListener('keydown', event => {
