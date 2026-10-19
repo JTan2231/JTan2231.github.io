@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="How Suwa handles Apple sign-in information, study submissions, AI grading, purchases, account deletion, and privacy requests." />
+    <meta name="color-scheme" content="light" />
+    <link rel="canonical" href="https://joeytan.dev/suwa/privacy/" />
+    <link rel="stylesheet" href="/suwa/style.css" />
+    <title>Privacy policy — Suwa</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="wrap">
+      <header class="site-header">
+        <a class="brand" href="/suwa/"><span class="brand-mark" lang="ja">諏訪</span> Suwa</a>
+        <nav aria-label="Suwa"><a href="/suwa/support/">Support</a><a href="/suwa/privacy/" aria-current="page">Privacy</a><a href="/suwa/credits/">Credits</a></nav>
+      </header>
+      <main id="main">
+        <h1>Privacy policy</h1>
+        <p class="meta">Effective October 18, 2026 · Last updated October 18, 2026</p>
+        <p>This policy explains how Joseph Tan (the operator of Suwa, “we” or “us”) handles information when you use the Suwa iPhone and iPad app and these Suwa support pages. Contact <a href="mailto:j.tan2231@gmail.com">j.tan2231@gmail.com</a> with privacy questions or requests.</p>
+        <nav class="contents" aria-label="On this page"><ul><li><a href="#collection">Information</a></li><li><a href="#ai">AI processing</a></li><li><a href="#providers">Service providers</a></li><li><a href="#retention">Retention and deletion</a></li><li><a href="#choices">Your choices</a></li></ul></nav>
+        <section id="collection" aria-labelledby="collection-title">
+          <h2 id="collection-title">Information we handle</h2>
+          <ul>
+            <li><strong>Account and sign-in information.</strong> Sign in with Apple provides an Apple account identifier and may provide your name and email address, including a private relay address if you choose Hide My Email. Suwa creates its own account identifier and stores account dates, sign-in status, session records, and the protected Apple authorization information needed to manage sign-in and account deletion.</li>
+            <li><strong>Submitted study content.</strong> For Suwa Plus translation feedback, we store your submitted English translation, its associated daily challenge, submission dates and status, and generated scores and explanations, linked to your Suwa account.</li>
+            <li><strong>Subscription information.</strong> Apple provides transaction identifiers, product identifiers, subscription status, renewal and expiration information, and an account association token. We use these to verify access and process subscription updates. Suwa does not receive your full payment card details.</li>
+            <li><strong>Support correspondence.</strong> If you email us, we receive your email address, message, and any attachments or other information you choose to include. We use that information to respond and resolve your request.</li>
+            <li><strong>Operational information.</strong> Our service providers process connection information, such as IP addresses and request metadata, to deliver and secure the service. Suwa’s application logs record service events and errors. Submission-grading logs omit your attempted translation and feedback; diagnostics for shared daily answer keys may include the shared Japanese sentence and generated reference material.</li>
+          </ul>
+          <h3>Information kept on your device</h3>
+          <p>Free translation completions, vocabulary quiz answers and progress, and Notepad dictionary entries are stored locally on your device. Completing a free translation does not send that answer to Suwa’s grading service. If you upgrade and submit that answer for Plus feedback, it becomes a server submission as described above. Dictionary lookups send the selected Japanese lookup terms to Suwa’s server.</p>
+          <p>Suwa stores its session credentials in Apple’s Keychain. Local study records are not a cloud synchronization or backup service.</p>
+        </section>
+        <section aria-labelledby="use-title"><h2 id="use-title">How we use information</h2><p>We use information to sign you in, provide daily study activities and translation feedback, save submitted results, verify subscriptions, respond to support and privacy requests, secure the service, and carry out account deletion. Suwa has no advertising or analytics SDKs and does not use your information for cross-app advertising tracking.</p></section>
+        <section id="ai" aria-labelledby="ai-title">
+          <h2 id="ai-title">AI processing by OpenAI</h2>
+          <p>When you submit a translation for Suwa Plus feedback, Suwa sends your attempted English translation, the Japanese source sentence, and the shared answer key to OpenAI’s API. The response supplies rubric scores, explanations, and a summary. Suwa also uses OpenAI to prepare shared reference material. AI output can contain errors.</p>
+          <p><strong>Your permission comes first.</strong> The <strong>Allow OpenAI feedback</strong> control starts off for each account on a device. Suwa asks you to enable it before uploading a translation for feedback. Permission also covers today’s saved translation when you gain Plus access and allow it to be submitted. You can turn permission off in <strong>Account → AI feedback</strong> to stop future uploads from that device. Turning it off does not recall requests already sent, stop processing already queued on the server, or delete previously saved feedback.</p>
+          <p>Suwa does not append your name, email address, Apple credentials, Suwa account identifier, or session token to grading requests. Anything you type into a translation can still be included, so avoid entering unrelated personal or sensitive information.</p>
+          <p>Requests disable saved API response storage. This does not eliminate all provider retention: OpenAI’s published API controls describe abuse-monitoring logs, caching, and other exceptions. Its default policy does not use API data for model training unless the API customer opts in. See <a href="https://developers.openai.com/api/docs/guides/your-data">OpenAI’s API data controls</a>.</p>
+          <p>You can use free daily activities without submitting an answer for AI grading.</p>
+        </section>
+        <section id="providers" aria-labelledby="providers-title">
+          <h2 id="providers-title">Services that process information</h2>
+          <ul>
+            <li><strong>Apple</strong> provides Sign in with Apple, App Store purchases, subscription management, and device security services. See <a href="https://www.apple.com/legal/privacy/">Apple’s privacy information</a>.</li>
+            <li><strong>Railway</strong> hosts Suwa’s backend and database. Account records, submitted translations and feedback, and subscription records are processed there. See <a href="https://railway.com/legal/privacy">Railway’s privacy policy</a>.</li>
+            <li><strong>OpenAI</strong> processes the grading and reference-material requests described above.</li>
+            <li><strong>GitHub Pages</strong> hosts these public web pages and processes website connection and request information. These Suwa pages contain no analytics scripts, advertising scripts, sign-in forms, or cookies set by Suwa. See <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub’s privacy statement</a>.</li>
+            <li><strong>Email services</strong> process support correspondence when you contact us by email.</li>
+          </ul>
+          <p>We do not sell your personal information or share it for targeted advertising. We may disclose information when required by law or when necessary to protect the service, its users, or others against fraud, abuse, or security threats.</p>
+        </section>
+        <section id="retention" aria-labelledby="retention-title">
+          <h2 id="retention-title">Retention and account deletion</h2>
+          <p>Account information and submitted translations are kept while your account exists. To start deletion, open <strong>Account → Delete account</strong> in Suwa and confirm. If you cannot access your account, contact support.</p>
+          <ul>
+            <li><strong>When deletion begins,</strong> Suwa invalidates sessions, disables account access, and clears your name and email address from the active account records.</li>
+            <li><strong>After Apple authorization is revoked,</strong> Suwa removes the account, Apple identity and authorization records, and submitted translations and feedback from its live database. If revocation is temporarily unavailable, the account stays inaccessible and the server retries cleanup.</li>
+            <li><strong>A security record remains temporarily:</strong> a hash of the Apple account identifier and revocation time is scheduled for removal after 30 days to prevent stale sign-in authorizations from recreating a deleted account.</li>
+            <li><strong>Subscription records remain after deletion:</strong> transaction identifiers, subscription state and dates, the account association token, and billing notification records are retained to process purchase updates and prevent purchases from being reassigned incorrectly. The link to the deleted account record is removed. These billing records currently have no automatic expiry.</li>
+          </ul>
+          <p>Deleting your Suwa account does not cancel an Apple subscription. Cancel separately in Apple’s subscription settings if you do not want renewal.</p>
+          <p>Account deletion removes local saved translation attempts and vocabulary quiz records on the device making the request. Notepad entries are device-local and can be removed individually; account deletion does not erase every local note or records on other devices.</p>
+          <p>Deletion from the live database does not guarantee immediate erasure from hosting backups, operational logs, email systems, or copies held by providers. Those systems follow their applicable retention practices. We do not promise a specific backup or log deletion deadline. Provider retention may also apply to AI requests already sent before deletion.</p>
+          <p>We keep support correspondence needed to handle the request and related follow-up. Contact us if you want to request deletion of correspondence or other information.</p>
+        </section>
+        <section id="choices" aria-labelledby="choices-title">
+          <h2 id="choices-title">Your choices and requests</h2>
+          <p>You can choose Apple’s Hide My Email option, use free study activities without AI grading, turn off <strong>Allow OpenAI feedback</strong> in Account, manage or cancel subscriptions through Apple, and delete your Suwa account in the app. You may also email <a href="mailto:j.tan2231@gmail.com?subject=Suwa%20privacy%20request">j.tan2231@gmail.com</a> to request access, correction, a copy, or deletion of personal information. We may verify ownership before acting and will handle requests subject to applicable requirements and permitted exceptions.</p>
+          <p>Parents and guardians with questions about a child’s information can use the same contact address.</p>
+        </section>
+        <section aria-labelledby="security-title"><h2 id="security-title">Security</h2><p>Suwa uses HTTPS for app-to-server communication, protected sign-in tokens, and device Keychain storage for session credentials. No method of transmission or storage is completely secure.</p></section>
+        <section aria-labelledby="changes-title"><h2 id="changes-title">Changes and contact</h2><p>We will update this page when our practices change and revise the date above. For questions about this policy, contact Joseph Tan at <a href="mailto:j.tan2231@gmail.com">j.tan2231@gmail.com</a>.</p></section>
+      </main>
+      <footer class="site-footer"><p>Suwa · Joseph Tan</p><p><a href="/suwa/">Suwa</a> · <a href="/suwa/support/">Support</a> · <a href="/suwa/credits/">Credits</a></p></footer>
+    </div>
+  </body>
+</html>

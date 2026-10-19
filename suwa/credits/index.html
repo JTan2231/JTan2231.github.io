@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Sources and credits for Suwa: JMdict, EDRDG, KanjiVG, Aozora Bunko, MeCab, and IPADIC." />
+    <meta name="color-scheme" content="light" />
+    <link rel="canonical" href="https://joeytan.dev/suwa/credits/" />
+    <link rel="stylesheet" href="/suwa/style.css" />
+    <title>Sources and credits — Suwa</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="wrap">
+      <header class="site-header">
+        <a class="brand" href="/suwa/"><span class="brand-mark" lang="ja">諏訪</span> Suwa</a>
+        <nav aria-label="Suwa"><a href="/suwa/support/">Support</a><a href="/suwa/privacy/">Privacy</a><a href="/suwa/credits/" aria-current="page">Credits</a></nav>
+      </header>
+      <main id="main">
+        <h1>Sources and credits</h1>
+        <p class="lead">Suwa draws on the work of dictionary editors, digitization volunteers, and open-source contributors.</p>
+        <section aria-labelledby="jmdict"><h2 id="jmdict">JMdict / EDRDG</h2><p>Dictionary content uses the English-language JMdict dataset. Copyright in the dictionary is held by James William Breen and the Electronic Dictionary Research and Development Group (EDRDG). The data is available under <a href="https://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0</a>.</p><p>Suwa imports JMdict data into relational tables and selects applicable readings and senses for dictionary lookup and study material. See the <a href="https://www.edrdg.org/jmdict/j_jmdict.html">JMdict documentation</a> and <a href="https://www.edrdg.org/edrdg/licence.html">EDRDG dictionary license statement</a>.</p></section>
+        <section aria-labelledby="kanjivg"><h2 id="kanjivg">KanjiVG</h2><p>Stroke data is adapted from <a href="https://kanjivg.tagaini.net/">KanjiVG</a>, copyright © 2009–2026 Ulrich Apel and contributors, under <a href="https://creativecommons.org/licenses/by-sa/3.0/">Creative Commons Attribution-ShareAlike 3.0 Unported</a>.</p><p>Suwa uses the <a href="https://github.com/KanjiVG/kanjivg/releases/tag/r20260714">July 14, 2026 release</a>. Its adaptation retains ordered main-glyph stroke paths, converts path commands into absolute cubic curves, and removes stroke numbers, component metadata, and variant glyphs. The adapted stroke dataset remains under the same license. <a href="/suwa/licenses/kanjivg-cc-by-sa-3.0.txt">Full license text</a>.</p></section>
+        <section aria-labelledby="aozora"><h2 id="aozora">Aozora Bunko</h2><p>Japanese source sentences are sampled from works digitized by <a href="https://www.aozora.gr.jp/">Aozora Bunko</a> and its volunteers. Suwa retains each selected work’s title, author, and source link, and displays source attribution with the challenge.</p><p>Study sentences omit ruby markup and source annotations while retaining the selected sentence’s wording. Aozora Bunko’s bibliographic metadata is provided under <a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0</a>; literary works have their own copyright status. See <a href="https://www.aozora.gr.jp/guide/kijyunn.html">Aozora Bunko’s file-use guidelines</a>.</p></section>
+        <section aria-labelledby="mecab"><h2 id="mecab">MeCab, Darts, and IPADIC</h2><p>Suwa’s server-side Japanese analyzer is derived from MeCab 0.996 by Taku Kudo and Nippon Telegraph and Telephone Corporation, using its BSD license option. It includes code derived from Darts 0.31 and uses IPADIC dictionary data.</p><p>The <a href="/suwa/licenses/mecab-ipadic-notices.txt">full MeCab, Darts, IPADIC, and ICOT notices</a> preserve the applicable copyright, permission, and warranty statements.</p></section>
+        <section aria-labelledby="ai"><h2 id="ai">AI-generated study material</h2><p>Reference translations, contextual explanations, difficulty estimates, and subscriber translation feedback are generated using OpenAI. Difficulty estimates draw on the model’s knowledge and guidance informed by JEV and the Hagoromo grammar database. Generated material can contain errors and is not an official proficiency assessment. See the <a href="/suwa/privacy/#ai">AI processing disclosure</a>.</p></section>
+        <section aria-labelledby="corrections"><h2 id="corrections">Corrections and source questions</h2><p>Report a source attribution, dictionary, or license concern to <a href="mailto:j.tan2231@gmail.com?subject=Suwa%20source%20question">j.tan2231@gmail.com</a>. Referencing a source does not imply its authors or maintainers endorse Suwa.</p></section>
+      </main>
+      <footer class="site-footer"><p>Suwa · Joseph Tan</p><p><a href="/suwa/">Suwa</a> · <a href="/suwa/support/">Support</a> · <a href="/suwa/privacy/">Privacy</a></p></footer>
+    </div>
+  </body>
+</html>
