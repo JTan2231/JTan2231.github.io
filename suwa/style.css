@@ -33,8 +33,6 @@ li { margin-bottom: 9px; }
 .lead { font-size: 21px; line-height: 1.6; color: #464c54; max-width: 630px; }
 .demo-page .wrap { display: grid; grid-template-rows: 1fr auto; min-height: 100svh; }
 .demo { display: grid; align-content: center; justify-items: center; text-align: center; }
-.demo h1 { margin: 0; font-size: 23px; }
-.demo-label { margin: 9px 0 0; }
 .demo #sentence {
   margin-block: 32px;
   max-width: 680px;
@@ -48,33 +46,50 @@ li { margin-bottom: 9px; }
 .demo #challenge-status:empty { margin: 0; }
 .demo form, .demo #reference { width: min(100%, 470px); }
 .demo label { display: block; margin-bottom: 8px; font-size: 15px; font-weight: 600; }
-.demo textarea {
+.translation-field { position: relative; }
+.translation-field::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  width: 15%;
+  margin-inline: auto;
+  border-bottom: 1px solid;
+  pointer-events: none;
+  transition: width 180ms ease;
+}
+.translation-field:focus-within::after { width: 100%; }
+@media (prefers-reduced-motion: reduce) {
+  .translation-field::after { transition: none; }
+}
+.translation-field input {
+  appearance: none;
   display: block;
   width: 100%;
-  padding: 12px 14px;
-  border: 1px solid #aab4bc;
-  border-radius: 10px;
-  background: #fff;
+  padding: 4px 0;
+  border: 0;
+  outline: none;
+  background: transparent;
   color: inherit;
   font: inherit;
-  resize: vertical;
+  text-align: center;
 }
 .demo button {
+  appearance: none;
   margin-top: 14px;
   padding: 9px 24px;
-  border: 1px solid #c4e0f3;
-  border-radius: 10px;
-  background: #e9f5fe;
-  color: #164b72;
+  border: 0;
+  background: transparent;
+  color: #000;
   font: inherit;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
 }
-.demo button:hover { background: #dceffd; }
-.demo textarea:focus-visible, .demo button:focus-visible, .demo #reference:focus-visible { outline: 3px solid #71b8eb; outline-offset: 4px; }
+.demo button:focus-visible, .demo #reference:focus-visible { outline: 3px solid #71b8eb; outline-offset: 4px; }
 .demo #reference h2 { margin: 0 0 8px; color: #626a74; font-size: 15px; letter-spacing: normal; }
 .demo #reference p { margin: 0; font-size: 21px; }
 .demo #attribution { margin: 24px 0 0; }
+.demo #source-link { color: #000; font-weight: 700; text-decoration: none; }
 .demo-page .site-footer { justify-content: center; }
 .note { padding: 18px 20px; border-left: 3px solid #8dc8f1; background: #f3f9fe; }
 .note p:last-child { margin-bottom: 0; }

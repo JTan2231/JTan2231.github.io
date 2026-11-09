@@ -13,12 +13,12 @@
   <body class="demo-page">
     <div class="wrap">
       <main class="demo">
-        <h1>Suwa</h1>
-        <p class="meta demo-label">Daily Japanese translation</p>
         <p id="sentence" lang="ja"></p>
         <form id="translation-form" autocomplete="off" hidden>
-          <label for="translation">Your English translation</label>
-          <textarea id="translation" rows="3" required></textarea>
+          <label for="translation">translate</label>
+          <div class="translation-field">
+            <input id="translation" type="text" required />
+          </div>
           <button type="submit">Submit</button>
         </form>
         <section id="reference" aria-labelledby="reference-label" tabindex="-1" hidden>
