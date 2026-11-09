@@ -29,16 +29,53 @@ h3 { margin: 26px 0 10px; font-size: 18px; font-weight: 650; }
 p { margin: 0 0 18px; }
 ul, ol { padding-left: 25px; margin: 0 0 22px; }
 li { margin-bottom: 9px; }
-.eyebrow, .meta { color: #626a74; font-size: 14px; }
-.eyebrow { margin-bottom: 18px; letter-spacing: .06em; text-transform: uppercase; }
+.meta { color: #626a74; font-size: 14px; }
 .lead { font-size: 21px; line-height: 1.6; color: #464c54; max-width: 630px; }
-.hero { padding-block: 22px 28px; }
-.hero-mark { display: block; margin-bottom: 30px; font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; font-size: 74px; line-height: 1.25; letter-spacing: .08em; }
-.actions { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-block: 24px; }
-.button { display: inline-block; padding: 10px 18px; border: 1px solid #c4e0f3; border-radius: 10px; background: #e9f5fe; color: #164b72; text-decoration: none; font-weight: 600; }
-.button:hover { background: #dceffd; }
-.split { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; padding-top: 10px; border-top: 1px solid #e4e7eb; }
-.split h2 { margin-top: 26px; }
+.demo-page .wrap { display: grid; grid-template-rows: 1fr auto; min-height: 100svh; }
+.demo { display: grid; align-content: center; justify-items: center; text-align: center; }
+.demo h1 { margin: 0; font-size: 23px; }
+.demo-label { margin: 9px 0 0; }
+.demo #sentence {
+  margin-block: 32px;
+  max-width: 680px;
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif CJK JP", serif;
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.demo #sentence:empty { display: none; }
+.demo #challenge-status { margin: 24px 0 0; }
+.demo #challenge-status:empty { margin: 0; }
+.demo form, .demo #reference { width: min(100%, 470px); }
+.demo label { display: block; margin-bottom: 8px; font-size: 15px; font-weight: 600; }
+.demo textarea {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #aab4bc;
+  border-radius: 10px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  resize: vertical;
+}
+.demo button {
+  margin-top: 14px;
+  padding: 9px 24px;
+  border: 1px solid #c4e0f3;
+  border-radius: 10px;
+  background: #e9f5fe;
+  color: #164b72;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.demo button:hover { background: #dceffd; }
+.demo textarea:focus-visible, .demo button:focus-visible, .demo #reference:focus-visible { outline: 3px solid #71b8eb; outline-offset: 4px; }
+.demo #reference h2 { margin: 0 0 8px; color: #626a74; font-size: 15px; letter-spacing: normal; }
+.demo #reference p { margin: 0; font-size: 21px; }
+.demo #attribution { margin: 24px 0 0; }
+.demo-page .site-footer { justify-content: center; }
 .note { padding: 18px 20px; border-left: 3px solid #8dc8f1; background: #f3f9fe; }
 .note p:last-child { margin-bottom: 0; }
 .contents { margin-block: 28px; padding-block: 18px; border-block: 1px solid #e4e7eb; }
@@ -51,7 +88,5 @@ section { scroll-margin-top: 24px; }
 @media (max-width: 560px) {
   .site-header { align-items: flex-start; flex-direction: column; gap: 12px; padding-block: 22px; }
   main { padding-top: 36px; }
-  .split { grid-template-columns: 1fr; gap: 0; }
-  .hero-mark { font-size: 62px; }
   .lead { font-size: 19px; }
 }
