@@ -42,6 +42,7 @@ li { margin-bottom: 9px; }
   overflow-wrap: anywhere;
 }
 .demo #sentence:empty { display: none; }
+.demo:has(#reference:not([hidden])) #sentence { margin-bottom: 8px; }
 .demo #challenge-status { margin: 24px 0 0; }
 .demo #challenge-status:empty { margin: 0; }
 .demo form, .demo #reference { width: min(100%, 470px); }
@@ -86,8 +87,22 @@ li { margin-bottom: 9px; }
   cursor: pointer;
 }
 .demo button:focus-visible, .demo #reference:focus-visible { outline: 3px solid #71b8eb; outline-offset: 4px; }
-.demo #reference h2 { margin: 0 0 8px; color: #626a74; font-size: 15px; letter-spacing: normal; }
-.demo #reference p { margin: 0; font-size: 21px; }
+.demo #reference { overflow-wrap: anywhere; }
+#reference-text {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 24px;
+  line-height: 1.35;
+}
+#submitted-translation { margin: 16px 0 0; white-space: pre-wrap; }
+#submitted-translation:empty { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  #submitted-translation { animation: slide-submission 240ms ease-out; }
+}
+@keyframes slide-submission {
+  from { transform: translateY(-20px); }
+  to { transform: translateY(0); }
+}
 .demo #attribution { margin: 24px 0 0; }
 .demo #source-link { color: #000; font-weight: 700; text-decoration: none; }
 .demo-page .site-footer { justify-content: center; }

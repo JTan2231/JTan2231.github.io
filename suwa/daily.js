@@ -6,6 +6,7 @@ const form = document.querySelector("#translation-form");
 const translation = document.querySelector("#translation");
 const reference = document.querySelector("#reference");
 const referenceText = document.querySelector("#reference-text");
+const submittedTranslation = document.querySelector("#submitted-translation");
 const status = document.querySelector("#challenge-status");
 const attribution = document.querySelector("#attribution");
 const sourceLink = document.querySelector("#source-link");
@@ -34,7 +35,11 @@ function showCompletion() {
     reference.hidden = !completed;
     referenceText.textContent = completed ? challenge.reference_translation : "";
     status.textContent = stale ? "A new daily challenge is available. Reload the page to continue." : "";
-    if (completed) form.reset();
+    if (completed) {
+      form.reset();
+    } else {
+      submittedTranslation.textContent = "";
+    }
     return !form.hidden;
   } catch {
     showStorageError();
@@ -55,9 +60,10 @@ async function loadChallenge() {
       throw new Error("Daily challenge is incomplete");
     }
 
-    if (next.id !== challenge?.id) {
+    if (next.id !== challenge?.id || next.date !== challenge?.date) {
       form.reset();
       translation.setCustomValidity("");
+      submittedTranslation.textContent = "";
       sentence.textContent = next.sentence;
       const { title, authors, source_url: sourceURL } = next.attribution ?? {};
       sourceLink.textContent = [title, authors].filter(Boolean).join(" · ");
@@ -97,6 +103,7 @@ form.addEventListener("submit", (event) => {
     return;
   }
 
+  submittedTranslation.textContent = `“${translation.value}”`;
   showCompletion();
   reference.focus();
 });
