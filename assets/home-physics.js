@@ -97,6 +97,11 @@ function containsPoint(polygon, point) {
   return edges.every(edge => edge >= 0) || edges.every(edge => edge <= 0);
 }
 
+function bottomOffset(body) {
+  const rotate = rotation(body.angles);
+  return body.radius * Math.max(...body.mesh.vertices.map(vertex => rotate(vertex)[1]));
+}
+
 export function createPhysicsScene(canvas, input, { requestRender, project, unproject, reducedMotion }) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
@@ -104,9 +109,9 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
   const light = [-.48, -.64, -.60];
   const bodies = [
     { mesh: sphere(), color: [94, 111, 184], start: [-.25, -.27, .11], angles: [.32, .25, -.20] },
-    { mesh: pointedMesh(4), color: [205, 135, 62], start: [.24, -.30, .03], angles: [.29, .50, .16] },
-    { mesh: pointedMesh(10), color: [74, 150, 118], start: [-.27, .29, -.07], angles: [.25, -.18, -.32] },
-    { mesh: cube(), color: [182, 102, 125], start: [.26, .26, -.13], angles: [-.42, .56, .16] }
+    { mesh: pointedMesh(4), color: [205, 135, 62], start: [.24, -.30, .03], angles: [.29, .50, .16], flatBase: true },
+    { mesh: pointedMesh(10), color: [74, 150, 118], start: [-.27, .29, -.07], angles: [.25, -.18, -.32], flatBase: true },
+    { mesh: cube(), color: [182, 102, 125], start: [.26, .26, -.13], angles: [-.42, .56, .16], flatBase: true }
   ];
   for (const body of bodies) {
     body.position = [0, 0, 0];
@@ -120,6 +125,8 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
   let focal = 0;
   let edge = 0;
   let depth = 0;
+  let floor = 0;
+  let gravity = 0;
   let speedLimit = 0;
   let curved = false;
   let visible = true;
@@ -133,16 +140,22 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
 
   function constrain(body, bounce) {
     const scale = scaleAt(body.position[2]);
-    const limits = [(width / 2 - edge) / scale - body.radius,
-      (height / 2 - edge) / scale - body.radius, depth];
+    const wall = Math.max(0, (width / 2 - edge) / scale - body.radius);
+    const ceiling = -Math.max(0, (height / 2 - edge) / scale - body.radius);
+    const bottom = floor - bottomOffset(body);
+    const lower = [-wall, ceiling, -depth];
+    const upper = [wall, bottom, depth];
     for (let axis = 0; axis < 3; axis++) {
-      const limit = Math.max(0, limits[axis]);
       const position = body.position[axis];
-      body.position[axis] = clamp(position, -limit, limit);
-      if (bounce && Math.abs(position) > limit && position * body.velocity[axis] > 0) {
-        body.velocity[axis] *= -.78;
+      const constrained = clamp(position, lower[axis], upper[axis]);
+      body.position[axis] = constrained;
+      const speed = body.velocity[axis];
+      if (bounce && (position - constrained) * speed > 0) {
+        const hitsFloor = axis === 1 && position > bottom;
+        body.velocity[axis] *= hitsFloor ? (speed > gravity * .045 ? -.36 : 0) : -.78;
       }
     }
+    body.grounded = body.position[1] === bottom;
   }
 
   function resize(nextWidth, nextHeight, nextCurved) {
@@ -152,11 +165,17 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
     const shortSide = Math.min(nextWidth, nextHeight);
     const nextFocal = shortSide * 1.65;
     const scales = [nextWidth / width, nextHeight / height, nextFocal / focal];
+    floor = nextHeight * .35;
+    gravity = shortSide * 2.2;
     for (const body of bodies) {
       body.radius = Math.min(78, shortSide * .111);
       body.position = width
         ? body.position.map((value, axis) => value * scales[axis])
         : body.start.map((value, axis) => value * [nextWidth, nextHeight, nextFocal][axis]);
+      if (body.grounded || (!width && reducedMotion.matches)) {
+        if (!width && body.flatBase) body.angles[0] = body.angles[2] = 0;
+        body.position[1] = floor - bottomOffset(body);
+      }
     }
     width = nextWidth;
     height = nextHeight;
@@ -199,9 +218,11 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
     const steps = Math.max(1, Math.ceil(delta * 120));
     const dt = delta / steps;
     const damping = Math.exp(-1.35 * dt);
+    const floorDamping = Math.exp(-6 * dt);
     for (let index = 0; index < steps; index++) {
       for (const body of bodies) {
         if (body === drag?.body) continue;
+        body.velocity[1] += gravity * dt;
         for (let axis = 0; axis < 3; axis++) {
           body.position[axis] += body.velocity[axis] * dt;
           body.angles[axis] += body.spin[axis] * dt;
@@ -213,9 +234,24 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
       for (let first = 0; first < bodies.length; first++) {
         for (let second = first + 1; second < bodies.length; second++) collide(bodies[first], bodies[second]);
       }
-      bodies.forEach(body => constrain(body, true));
+      for (const body of bodies) {
+        constrain(body, body !== drag?.body);
+        if (body === drag?.body || !body.grounded || body.velocity[1] < 0) continue;
+        body.velocity[0] *= floorDamping;
+        body.velocity[2] *= floorDamping;
+        for (let axis = 0; axis < 3; axis++) body.spin[axis] *= floorDamping;
+        if (body.flatBase) {
+          // Ease the base onto the floor while preserving its yaw.
+          for (const axis of [0, 2]) {
+            const angle = Math.atan2(Math.sin(body.angles[axis]), Math.cos(body.angles[axis]));
+            body.angles[axis] = Math.abs(angle) < .008 ? 0 : angle * floorDamping;
+          }
+          body.position[1] = floor - bottomOffset(body);
+        }
+      }
     }
-    moving = bodies.some(body => body !== drag?.body && (length(body.velocity) > 2 || length(body.spin) > .025));
+    moving = bodies.some(body => needsFloor(body) ||
+      (body !== drag?.body && (length(body.velocity) > 2 || length(body.spin) > .025)));
     if (!moving) {
       lastTime = 0;
       for (const body of bodies) {
@@ -226,6 +262,11 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
       }
     }
     dirty = true;
+  }
+
+  function needsFloor(body) {
+    return body !== drag?.body && (!body.grounded ||
+      (body.flatBase && (body.angles[0] !== 0 || body.angles[2] !== 0)));
   }
 
   function render() {
@@ -258,6 +299,22 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
     faces.sort((a, b) => b.z - a.z);
     ctx.setTransform(canvas.width / width, 0, 0, canvas.height / height, 0, 0);
     ctx.clearRect(0, 0, width, height);
+    for (const body of bodies) {
+      const [x, y, z] = body.position;
+      const scale = scaleAt(z);
+      const size = body.radius * scale;
+      const gap = Math.max(0, floor - y - bottomOffset(body));
+      const alpha = .16 * Math.exp(-gap / body.radius);
+      ctx.save();
+      ctx.translate(width / 2 + x * scale, height / 2 + floor * scale);
+      ctx.scale(size, size * .24);
+      const shadow = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+      shadow.addColorStop(0, `rgba(0,0,0,${alpha})`);
+      shadow.addColorStop(1, 'transparent');
+      ctx.fillStyle = shadow;
+      ctx.fillRect(-1, -1, 2, 2);
+      ctx.restore();
+    }
     ctx.lineWidth = .85;
     ctx.lineJoin = 'round';
     for (const face of faces) {
@@ -308,6 +365,7 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
       if (speed > speedLimit) body.velocity = body.velocity.map(value => value * speedLimit / speed);
       body.angles[0] -= dy / (body.radius * 2.5);
       body.angles[1] += dx / (body.radius * 2.5);
+      constrain(body, false);
       body.spin[0] = -body.velocity[1] / (body.radius * 2.5);
       body.spin[1] = body.velocity[0] / (body.radius * 2.5);
       moving = true;
@@ -326,7 +384,7 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
     }
     input.classList.remove('is-dragging');
     if (input.hasPointerCapture(id)) input.releasePointerCapture(id);
-    if (keepMomentum) {
+    if (visible && !reducedMotion.matches) {
       moving = true;
       requestRender();
     }
@@ -375,13 +433,14 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
     stop,
     get moving() { return visible && moving; },
     setVisible(value) {
+      if (visible === value) return;
       visible = value;
       if (!visible) stop();
     },
     update(now) {
       if (!visible || !width) return false;
       if (moving && reducedMotion.matches) stop();
-      if (moving) step(now);
+      if (!reducedMotion.matches && (moving || bodies.some(needsFloor))) step(now);
       if (!dirty) return false;
       render();
       dirty = false;

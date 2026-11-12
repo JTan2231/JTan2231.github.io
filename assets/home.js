@@ -79,10 +79,10 @@ import { createPhysicsScene } from './home-physics.js';
   video.addEventListener('loadeddata', () => { videoDirty = true; });
   video.addEventListener('seeked', () => { videoDirty = true; });
 
-  function videoAmount() {
+  function videoAmount(now) {
     if (reducedMotion.matches) return 0;
     const duration = videoFade.to ? 2200 : 850;
-    const progress = Math.min(1, (performance.now() - videoFade.started) / duration);
+    const progress = Math.max(0, Math.min(1, (now - videoFade.started) / duration));
     const eased = videoFade.to ? progress * progress * (3 - 2 * progress) : 1 - Math.pow(1 - progress, 3);
     return videoFade.from + (videoFade.to - videoFade.from) * eased;
   }
@@ -90,8 +90,9 @@ import { createPhysicsScene } from './home-physics.js';
   function fadeVideo(visible) {
     const target = visible ? 1 : 0;
     if (videoFade.to === target) return;
-    videoFade = { from: videoAmount(), to: target, started: performance.now() };
-    surface.classList.toggle('has-video', visible);
+    const now = performance.now();
+    videoFade = { from: videoAmount(now), to: target, started: now };
+    requestRender();
   }
 
   function syncVideo() {
@@ -219,7 +220,7 @@ import { createPhysicsScene } from './home-physics.js';
  uniform sampler2D u_video;
  uniform sampler2D u_physics;
  uniform vec2 u_videoScale;
- uniform float u_videoFade,u_physicsVisible;
+ uniform float u_videoFade,u_physicsOpacity;
  uniform vec2 u_density;
  uniform float u_scan,u_time,u_roll,u_period,u_wear,u_base,u_letterGrit;
  float hash(vec2 p){vec3 q=fract(vec3(p.xyx)*.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}
@@ -258,9 +259,9 @@ import { createPhysicsScene } from './home-physics.js';
              +texture2D(u_texture,sampleUV-vec2(.0045,.0025)/u_density).rgb)*.5;
    c-=max(vec3(0.),vec3(u_base)-bloom)*u_wear*.12;
    float inkMask=smoothstep(.045,.34,u_base-sharp.r);
-   if(u_physicsVisible>0.){
+   if(u_physicsOpacity>0.){
      vec4 shapes=texture2D(u_physics,sampleUV);
-     c=mix(c,shapes.rgb,shapes.a*(1.-inkMask));
+     c=mix(c,shapes.rgb,shapes.a*u_physicsOpacity*(1.-inkMask));
    }
    // The moving image shares the glass curvature and tracking distortion.
    // Keep the dark lettering clear while the footage retains its color.
@@ -354,7 +355,7 @@ import { createPhysicsScene } from './home-physics.js';
       const physicsTexture = createTexture('physics', 2);
       gl.activeTexture(gl.TEXTURE0);
       const uniforms = {};
-      for (const name of ['bulge', 'density', 'scan', 'time', 'roll', 'period', 'wear', 'base', 'letterGrit', 'videoScale', 'videoFade', 'physicsVisible']) {
+      for (const name of ['bulge', 'density', 'scan', 'time', 'roll', 'period', 'wear', 'base', 'letterGrit', 'videoScale', 'videoFade', 'physicsOpacity']) {
         uniforms[name] = gl.getUniformLocation(program, 'u_' + name);
       }
       const set = (name, value) => gl.uniform1f(uniforms[name], value);
@@ -391,9 +392,8 @@ import { createPhysicsScene } from './home-physics.js';
           gl.uniform2f(uniforms.density, width / 440, height / 374);
           return true;
         },
-        paint() {
+        paint(amount, physicsOpacity) {
           if (gl.isContextLost()) return false;
-          const amount = videoAmount();
           const ready = video.readyState >= 2 && video.videoWidth > 0;
           // Older browsers can use the decoded-frame counter. Both bundled
           // montages are 24fps, which also bounds the final clock-based fallback.
@@ -419,7 +419,7 @@ import { createPhysicsScene } from './home-physics.js';
           set('period', effects.period);
           set('wear', effects.wear);
           set('base', base);
-          set('physicsVisible', Number(!!physics && !active));
+          set('physicsOpacity', physics ? physicsOpacity : 0);
           set('letterGrit', effects.letterGrit);
           set('videoFade', ready ? amount * .21 : 0);
           const videoAspect = ready ? video.videoWidth / video.videoHeight : 1;
@@ -740,8 +740,7 @@ import { createPhysicsScene } from './home-physics.js';
   function renderFrame(now) {
     frameId = 0;
     if (document.hidden || !inView) return;
-    const rendered = !!renderer && !compact.matches;
-    const interval = 1000 / (rendered ? 30 : 60);
+    const interval = 1000 / (renderer && !compact.matches ? 30 : 60);
     if (nextFrame && now + .1 < nextFrame) { requestRender(); return; }
     // Retain the deadline remainder instead of drifting below the target rate.
     nextFrame = nextFrame ? now + interval - Math.max(0, now - nextFrame) % interval : now + interval;
@@ -753,9 +752,10 @@ import { createPhysicsScene } from './home-physics.js';
       layoutDirty = false;
       measureScene();
     }
+    const rendered = !!renderer && !compact.matches;
     if (decorationsDirty) {
       decorationsDirty = false;
-      if (renderer && !compact.matches) updateDecorations();
+      if (rendered) updateDecorations();
     }
     if (geometryDirty) {
       geometryDirty = false;
@@ -763,21 +763,24 @@ import { createPhysicsScene } from './home-physics.js';
     }
     if (sceneDirty) {
       sceneDirty = false;
-      if (renderer && !compact.matches) buildText();
+      if (rendered) buildText();
     }
-    if (physics?.update(now) && renderer && !compact.matches) renderer.uploadPhysics();
-    if (renderer && !compact.matches && screenWidth && screenHeight) {
-      if (!renderer.paint()) { useTextDisplay(); return; }
+    const amount = videoAmount(now);
+    surface.style.setProperty('--video-amount', amount);
+    const physicsOpacity = reducedMotion.matches && active ? 0 : 1 - amount;
+    physics?.setVisible(physicsOpacity > 0);
+    if (physics?.update(now) && rendered) renderer.uploadPhysics();
+    if (rendered && screenWidth && screenHeight) {
+      if (!renderer.paint(amount, physicsOpacity)) { useTextDisplay(); return; }
     }
     if (typing || transition || layoutDirty || sceneDirty || physics?.moving ||
-        (renderer && !compact.matches && !reducedMotion.matches)) requestRender();
+        (!reducedMotion.matches && (rendered || amount !== videoFade.to))) requestRender();
     else nextFrame = lastTick = 0;
   }
 
   function close(returnFocus = true) {
     const previous = active;
     active = null;
-    physics?.setVisible(true);
     syncVideo();
     main.inert = false;
     panel.inert = true;
@@ -793,7 +796,6 @@ import { createPhysicsScene } from './home-physics.js';
   function open(project) {
     if (active === project) { close(false); return; }
     active = project;
-    physics?.setVisible(false);
     link.textContent = project.name;
     link.href = project.url;
     description.textContent = project.description;
