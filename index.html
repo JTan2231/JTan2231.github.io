@@ -7,13 +7,15 @@
     <meta name="color-scheme" content="light" />
     <title>Joey Tan</title>
     <link rel="stylesheet" href="/assets/home.css" />
-    <script src="/assets/home.js" defer></script>
+    <script src="/assets/home.js" type="module"></script>
   </head>
   <body>
     <div class="site" data-open="false">
       <div class="screen-surface">
         <video class="project-video" preload="none" muted loop playsinline disablepictureinpicture aria-hidden="true" tabindex="-1"></video>
+        <canvas class="physics-canvas" aria-hidden="true"></canvas>
         <canvas class="screen-canvas" aria-hidden="true" hidden></canvas>
+        <div class="physics-input" aria-hidden="true"></div>
         <div class="screen-content">
           <main aria-labelledby="name">
             <h1 id="name">Joey Tan</h1>

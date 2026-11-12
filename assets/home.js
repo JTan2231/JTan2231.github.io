@@ -1,3 +1,5 @@
+import { createPhysicsScene } from './home-physics.js';
+
 (() => {
   'use strict';
 
@@ -7,6 +9,7 @@
   const content = surface.querySelector('.screen-content');
   const main = content.querySelector('main');
   const canvas = surface.querySelector('.screen-canvas');
+  const physicsCanvas = surface.querySelector('.physics-canvas');
   const video = surface.querySelector('.project-video');
   const link = panel.querySelector('.project-link');
   const description = panel.querySelector('.project-description');
@@ -52,6 +55,9 @@
   let videoPauseTimer = 0;
   let videoFrameId = 0;
   let videoDirty = true;
+  const physics = createPhysicsScene(physicsCanvas, surface.querySelector('.physics-input'), {
+    requestRender, project: projectPhysicsPoint, unproject: unprojectPhysicsPoint, reducedMotion
+  });
 
   function watchVideoFrames() {
     if (!video.requestVideoFrameCallback || videoFrameId || video.paused || document.hidden || !inView) return;
@@ -211,8 +217,9 @@
  varying vec2 v_uv;
  uniform sampler2D u_texture;
  uniform sampler2D u_video;
+ uniform sampler2D u_physics;
  uniform vec2 u_videoScale;
- uniform float u_videoFade;
+ uniform float u_videoFade,u_physicsVisible;
  uniform vec2 u_density;
  uniform float u_scan,u_time,u_roll,u_period,u_wear,u_base,u_letterGrit;
  float hash(vec2 p){vec3 q=fract(vec3(p.xyx)*.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}
@@ -251,6 +258,10 @@
              +texture2D(u_texture,sampleUV-vec2(.0045,.0025)/u_density).rgb)*.5;
    c-=max(vec3(0.),vec3(u_base)-bloom)*u_wear*.12;
    float inkMask=smoothstep(.045,.34,u_base-sharp.r);
+   if(u_physicsVisible>0.){
+     vec4 shapes=texture2D(u_physics,sampleUV);
+     c=mix(c,shapes.rgb,shapes.a*(1.-inkMask));
+   }
    // The moving image shares the glass curvature and tracking distortion.
    // Keep the dark lettering clear while the footage retains its color.
    if(u_videoFade>0.){
@@ -284,9 +295,8 @@
         gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) return null;
     const shaders = [];
     const buffers = [];
+    const textures = [];
     let program;
-    let texture;
-    let videoTexture;
     let uploadedVideoFrame = -1;
     let uploadedVideoSource = '';
     try {
@@ -326,26 +336,25 @@
         gl.enableVertexAttribArray(location);
         gl.vertexAttribPointer(location, 2, gl.FLOAT, false, 0, 0);
       }
-      texture = gl.createTexture();
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.uniform1i(gl.getUniformLocation(program, 'u_texture'), 0);
-      videoTexture = gl.createTexture();
-      gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_2D, videoTexture);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
-        new Uint8Array([0, 0, 0, 255]));
-      gl.uniform1i(gl.getUniformLocation(program, 'u_video'), 1);
+      function createTexture(name, unit) {
+        const texture = gl.createTexture();
+        textures.push(texture);
+        gl.activeTexture(gl.TEXTURE0 + unit);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.uniform1i(gl.getUniformLocation(program, 'u_' + name), unit);
+        return texture;
+      }
+      const texture = createTexture('texture', 0);
+      const videoTexture = createTexture('video', 1);
+      const physicsTexture = createTexture('physics', 2);
       gl.activeTexture(gl.TEXTURE0);
       const uniforms = {};
-      for (const name of ['bulge', 'density', 'scan', 'time', 'roll', 'period', 'wear', 'base', 'letterGrit', 'videoScale', 'videoFade']) {
+      for (const name of ['bulge', 'density', 'scan', 'time', 'roll', 'period', 'wear', 'base', 'letterGrit', 'videoScale', 'videoFade', 'physicsVisible']) {
         uniforms[name] = gl.getUniformLocation(program, 'u_' + name);
       }
       const set = (name, value) => gl.uniform1f(uniforms[name], value);
@@ -360,6 +369,12 @@
           gl.bindTexture(gl.TEXTURE_2D, texture);
           gl.texSubImage2D(gl.TEXTURE_2D, 0, patchBounds.x, patchBounds.y,
             gl.RGBA, gl.UNSIGNED_BYTE, patch);
+        },
+        uploadPhysics() {
+          gl.activeTexture(gl.TEXTURE2);
+          gl.bindTexture(gl.TEXTURE_2D, physicsTexture);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, physicsCanvas);
+          gl.activeTexture(gl.TEXTURE0);
         },
         resize(width, height) {
           // Bound the full-screen fragment work, including on large/high-DPI displays.
@@ -404,6 +419,7 @@
           set('period', effects.period);
           set('wear', effects.wear);
           set('base', base);
+          set('physicsVisible', Number(!!physics && !active));
           set('letterGrit', effects.letterGrit);
           set('videoFade', ready ? amount * .21 : 0);
           const videoAspect = ready ? video.videoWidth / video.videoHeight : 1;
@@ -416,8 +432,7 @@
       };
     } catch (error) {
       buffers.forEach(buffer => gl.deleteBuffer(buffer));
-      if (texture) gl.deleteTexture(texture);
-      if (videoTexture) gl.deleteTexture(videoTexture);
+      textures.forEach(texture => gl.deleteTexture(texture));
       if (program) gl.deleteProgram(program);
       console.warn('CRT rendering unavailable; using the text display.', error);
       return null;
@@ -547,6 +562,21 @@
     };
   }
 
+  function projectPhysicsPoint(x, y) {
+    const point = projectPoint(x, y);
+    return [point.x, point.y];
+  }
+
+  function unprojectPhysicsPoint(x, y) {
+    const u = x / screenWidth * 2 - 1;
+    const v = y / screenHeight * 2 - 1;
+    const distance = 3.7 - 2 * effects.curvature;
+    // Invert the radial CRT warp before applying the drag to the scene.
+    const discriminant = 3.4 ** 2 - 4 * effects.curvature * distance * (u * u + v * v);
+    const scale = 2 * distance / (3.4 + Math.sqrt(Math.max(0, discriminant)));
+    return [(u * scale + 1) * screenWidth / 2, (v * scale + 1) * screenHeight / 2];
+  }
+
   function draw() {
     layoutDirty = true;
     requestRender();
@@ -558,9 +588,10 @@
     controls.forEach(control => { control.style.transform = ''; });
     const rendered = !!renderer && !compact.matches;
     canvas.hidden = !rendered;
-    if (!rendered) return;
     screenWidth = surface.clientWidth;
     screenHeight = surface.clientHeight;
+    physics?.resize(screenWidth, screenHeight, rendered);
+    if (!rendered) return;
     if (!screenWidth || !screenHeight) return;
     if (!renderer.resize(screenWidth, screenHeight)) { useTextDisplay(); return; }
     if (source.width !== canvas.width) source.width = canvas.width;
@@ -696,6 +727,7 @@
 
   function startEffects() {
     stopEffects();
+    if (!inView || document.hidden) physics?.stop();
     syncVideo();
     site.dataset.effectsPaused = String(reducedMotion.matches || document.hidden || !inView);
     requestRender();
@@ -733,10 +765,11 @@
       sceneDirty = false;
       if (renderer && !compact.matches) buildText();
     }
+    if (physics?.update(now) && renderer && !compact.matches) renderer.uploadPhysics();
     if (renderer && !compact.matches && screenWidth && screenHeight) {
       if (!renderer.paint()) { useTextDisplay(); return; }
     }
-    if (typing || transition || layoutDirty || sceneDirty ||
+    if (typing || transition || layoutDirty || sceneDirty || physics?.moving ||
         (renderer && !compact.matches && !reducedMotion.matches)) requestRender();
     else nextFrame = lastTick = 0;
   }
@@ -744,6 +777,7 @@
   function close(returnFocus = true) {
     const previous = active;
     active = null;
+    physics?.setVisible(true);
     syncVideo();
     main.inert = false;
     panel.inert = true;
@@ -759,6 +793,7 @@
   function open(project) {
     if (active === project) { close(false); return; }
     active = project;
+    physics?.setVisible(false);
     link.textContent = project.name;
     link.href = project.url;
     description.textContent = project.description;
