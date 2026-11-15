@@ -9,6 +9,16 @@
             "comment": "Matches Plaid OAuth redirect paths."
           }
         ]
+      },
+      {
+        "appIDs": ["F96ST3ZS59.com.chamber.palette"],
+        "components": [
+          {
+            "/": "/",
+            "#": "palette-recipe=?*",
+            "comment": "Matches Palette recipe share links."
+          }
+        ]
       }
     ]
   }
