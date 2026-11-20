@@ -16,6 +16,11 @@ import { createPhysicsScene } from './home-physics.js';
   const status = document.getElementById('project-status');
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const compact = matchMedia('(max-width: 520px)');
+  const canHover = matchMedia('(any-hover: hover)');
+  const socialLinks = [
+    { link: surface.querySelector('.screen-social--github'), x: .19, y: .22, vx: 96, vy: 67 },
+    { link: surface.querySelector('.screen-social--linkedin'), x: .81, y: .76, vx: -89, vy: -58 }
+  ].filter(({ link }) => link);
   const effects = { curvature: .15, rolling: .85, period: 4.6, wear: .75, letterGrit: .65 };
   const projects = new Map();
   const words = new WeakMap();
@@ -39,6 +44,8 @@ import { createPhysicsScene } from './home-physics.js';
   let textRuns = [];
   let screenWidth = 0;
   let screenHeight = 0;
+  let socialInsetX = 0;
+  let socialInsetY = 0;
   let depth = 0;
   let transition = null;
   let active = null;
@@ -562,6 +569,29 @@ import { createPhysicsScene } from './home-physics.js';
     };
   }
 
+  function bounce(position, velocity, delta, length, inset) {
+    const next = position + velocity * delta / length;
+    if (next < inset) return [inset, Math.abs(velocity)];
+    if (next > 1 - inset) return [1 - inset, -Math.abs(velocity)];
+    return [next, velocity];
+  }
+
+  function positionSocialLinks(delta, rendered) {
+    if (!screenWidth || !screenHeight) return;
+    for (const logo of socialLinks) {
+      const { link } = logo;
+      const pinned = link.matches(':focus-visible, :active') || (canHover.matches && link.matches(':hover'));
+      const step = pinned ? 0 : delta;
+      [logo.x, logo.vx] = bounce(logo.x, logo.vx, step, screenWidth, socialInsetX);
+      [logo.y, logo.vy] = bounce(logo.y, logo.vy, step, screenHeight, socialInsetY);
+      const x = logo.x * screenWidth;
+      const y = logo.y * screenHeight;
+      const point = rendered ? projectPoint(x, y) : { x, y };
+      link.style.left = `${point.x}px`;
+      link.style.top = `${point.y}px`;
+    }
+  }
+
   function projectPhysicsPoint(x, y) {
     const point = projectPoint(x, y);
     return [point.x, point.y];
@@ -590,6 +620,11 @@ import { createPhysicsScene } from './home-physics.js';
     canvas.hidden = !rendered;
     screenWidth = surface.clientWidth;
     screenHeight = surface.clientHeight;
+    const logoRadius = (socialLinks[0]?.link.offsetWidth ?? 0) / 2;
+    // Keep the whole tile inside the glass, including at the rounded corners.
+    const glassInset = rendered ? .12 : .08;
+    socialInsetX = Math.min(.5, glassInset + logoRadius / screenWidth);
+    socialInsetY = Math.min(.5, glassInset + logoRadius / screenHeight);
     physics?.resize(screenWidth, screenHeight, rendered);
     if (!rendered) return;
     if (!screenWidth || !screenHeight) return;
@@ -744,7 +779,8 @@ import { createPhysicsScene } from './home-physics.js';
     if (nextFrame && now + .1 < nextFrame) { requestRender(); return; }
     // Retain the deadline remainder instead of drifting below the target rate.
     nextFrame = nextFrame ? now + interval - Math.max(0, now - nextFrame) % interval : now + interval;
-    if (lastTick && !reducedMotion.matches) elapsed += (now - lastTick) / 1000;
+    const delta = lastTick && !reducedMotion.matches ? (now - lastTick) / 1000 : 0;
+    elapsed += delta;
     lastTick = now;
     updateTyping(now);
     updateTransition(now);
@@ -753,6 +789,7 @@ import { createPhysicsScene } from './home-physics.js';
       measureScene();
     }
     const rendered = !!renderer && !compact.matches;
+    positionSocialLinks(Math.min(delta, .05), rendered);
     if (decorationsDirty) {
       decorationsDirty = false;
       if (rendered) updateDecorations();
@@ -775,7 +812,7 @@ import { createPhysicsScene } from './home-physics.js';
       if (!renderer.paint(amount, physicsOpacity)) { useTextDisplay(); return; }
     }
     if (typing || transition || layoutDirty || sceneDirty || physics?.moving ||
-        (!reducedMotion.matches && (rendered || amount !== videoFade.to))) requestRender();
+        (!reducedMotion.matches && (socialLinks.length || rendered || amount !== videoFade.to))) requestRender();
     else nextFrame = lastTick = 0;
   }
 
