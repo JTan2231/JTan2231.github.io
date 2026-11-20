@@ -53,6 +53,7 @@ import { createPhysicsScene } from './home-physics.js';
   let frameId = 0;
   let nextFrame = 0;
   let lastTick = 0;
+  let lastSocialTick = 0;
   let elapsed = 0;
   let inView = false;
   let base = 1;
@@ -570,14 +571,24 @@ import { createPhysicsScene } from './home-physics.js';
   }
 
   function bounce(position, velocity, delta, length, inset) {
-    const next = position + velocity * delta / length;
-    if (next < inset) return [inset, Math.abs(velocity)];
-    if (next > 1 - inset) return [1 - inset, -Math.abs(velocity)];
-    return [next, velocity];
+    const span = 1 - 2 * inset;
+    if (span <= 0) return [.5, velocity];
+    const offset = Math.max(0, Math.min(span, position - inset));
+    const next = offset + velocity * delta / length;
+    if (next >= 0 && next <= span) return [inset + next, velocity];
+    // Fold the path at the edges so each bounce preserves the full frame's travel.
+    const period = 2 * span;
+    const remainder = next % period;
+    const phase = remainder < 0 ? remainder + period : remainder;
+    return phase <= span ? [inset + phase, velocity] : [inset + period - phase, -velocity];
   }
 
-  function positionSocialLinks(delta, rendered) {
+  function updateSocialLinks(now) {
     if (!screenWidth || !screenHeight) return;
+    const animated = !reducedMotion.matches;
+    const delta = animated && lastSocialTick ? Math.min((now - lastSocialTick) / 1000, .05) : 0;
+    lastSocialTick = animated ? now : 0;
+    const rendered = surface.classList.contains('is-rendered');
     for (const logo of socialLinks) {
       const { link } = logo;
       const pinned = link.matches(':focus-visible, :active') || (canHover.matches && link.matches(':hover'));
@@ -587,8 +598,7 @@ import { createPhysicsScene } from './home-physics.js';
       const x = logo.x * screenWidth;
       const y = logo.y * screenHeight;
       const point = rendered ? projectPoint(x, y) : { x, y };
-      link.style.left = `${point.x}px`;
-      link.style.top = `${point.y}px`;
+      link.style.transform = `translate3d(${point.x}px, ${point.y}px, 0) translate(-50%, -50%)`;
     }
   }
 
@@ -621,6 +631,7 @@ import { createPhysicsScene } from './home-physics.js';
     screenWidth = surface.clientWidth;
     screenHeight = surface.clientHeight;
     const logoRadius = (socialLinks[0]?.link.offsetWidth ?? 0) / 2;
+    for (const { link } of socialLinks) link.style.inset = '0 auto auto 0';
     // Keep the whole tile inside the glass, including at the rounded corners.
     const glassInset = rendered ? .12 : .08;
     socialInsetX = Math.min(.5, glassInset + logoRadius / screenWidth);
@@ -762,7 +773,10 @@ import { createPhysicsScene } from './home-physics.js';
 
   function startEffects() {
     stopEffects();
-    if (!inView || document.hidden) physics?.stop();
+    if (!inView || document.hidden) {
+      physics?.stop();
+      lastSocialTick = 0;
+    }
     syncVideo();
     site.dataset.effectsPaused = String(reducedMotion.matches || document.hidden || !inView);
     requestRender();
@@ -776,11 +790,15 @@ import { createPhysicsScene } from './home-physics.js';
     frameId = 0;
     if (document.hidden || !inView) return;
     const interval = 1000 / (renderer && !compact.matches ? 30 : 60);
-    if (nextFrame && now + .1 < nextFrame) { requestRender(); return; }
+    if (nextFrame && now + .1 < nextFrame) {
+      // Move the logos on display frames between CRT paints as well.
+      updateSocialLinks(now);
+      requestRender();
+      return;
+    }
     // Retain the deadline remainder instead of drifting below the target rate.
     nextFrame = nextFrame ? now + interval - Math.max(0, now - nextFrame) % interval : now + interval;
-    const delta = lastTick && !reducedMotion.matches ? (now - lastTick) / 1000 : 0;
-    elapsed += delta;
+    if (lastTick && !reducedMotion.matches) elapsed += (now - lastTick) / 1000;
     lastTick = now;
     updateTyping(now);
     updateTransition(now);
@@ -789,7 +807,7 @@ import { createPhysicsScene } from './home-physics.js';
       measureScene();
     }
     const rendered = !!renderer && !compact.matches;
-    positionSocialLinks(Math.min(delta, .05), rendered);
+    updateSocialLinks(now);
     if (decorationsDirty) {
       decorationsDirty = false;
       if (rendered) updateDecorations();

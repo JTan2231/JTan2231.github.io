@@ -149,7 +149,7 @@ a:focus, button:focus { outline: none; }
   position: absolute;
   display: grid;
   place-items: center;
-  width: clamp(44px, 5vw, 52px);
+  width: 24px;
   aspect-ratio: 1;
   border-radius: 22%;
   transform: translate(-50%, -50%);
