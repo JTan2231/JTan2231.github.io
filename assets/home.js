@@ -1,4 +1,4 @@
-import { createPhysicsScene } from './home-physics.js';
+import { createPhysicsScene } from './home-physics.js?v=4';
 
 (() => {
   'use strict';

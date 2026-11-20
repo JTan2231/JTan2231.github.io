@@ -64,9 +64,12 @@ export function createClaw(world, { floor, homeLength, position, anchorY, limits
   let length = Math.max(homeLength, linkSpacing);
   let reelSpeed = 0;
   let phase = 'idle';
+  let releaseRequested = false;
   let wait = 0;
   let movingFor = 0;
   let reelJoint;
+
+  const canSteer = () => phase === 'idle' || phase === 'holding';
 
   function addBody(options) {
     const body = new Body({
@@ -213,10 +216,24 @@ export function createClaw(world, { floor, homeLength, position, anchorY, limits
     }
   }
 
+  function wakeSleepingPrizes() {
+    // A suspended prize can fall asleep while held and needs to wake to fall.
+    for (const body of world.bodies) {
+      if (body.sleepState === Body.SLEEPING) body.wakeUp();
+    }
+  }
+
+  function open() {
+    phase = 'opening';
+    wait = .5;
+    wakeSleepingPrizes();
+  }
+
   function update(dt, dx, dz) {
     if (!dt) return;
     movingFor = Math.max(0, movingFor - dt);
-    moveTrolley(dt, phase === 'idle' ? dx : 0, phase === 'idle' ? dz : 0);
+    const steer = canSteer();
+    moveTrolley(dt, steer ? dx : 0, steer ? dz : 0);
     let target = openAngle;
     if (phase === 'descending') {
       const bottom = Math.max(home, floor - 3.78 + hubMount.y - trolley.position.y);
@@ -233,9 +250,11 @@ export function createClaw(world, { floor, homeLength, position, anchorY, limits
       target = 0;
       reelToward(home, dt, 8);
       if (length <= home) {
-        phase = 'opening';
-        wait = .5;
+        if (releaseRequested) open();
+        else phase = 'holding';
       }
+    } else if (phase === 'holding') {
+      target = 0;
     } else if (phase === 'opening') {
       wait -= dt;
       if (wait <= 0) {
@@ -257,15 +276,23 @@ export function createClaw(world, { floor, homeLength, position, anchorY, limits
   return {
     visuals,
     update,
-    start() {
-      if (phase === 'idle') phase = 'descending';
+    toggleGrab() {
+      if (phase === 'idle') {
+        phase = 'descending';
+        releaseRequested = false;
+      } else if (phase === 'holding') {
+        open();
+      } else if (phase !== 'opening') {
+        releaseRequested = true;
+      }
     },
     get moving() {
-      return phase !== 'idle' || movingFor > 0 || hub.velocity.lengthSquared() > .004 ||
+      return !canSteer() || movingFor > 0 || hub.velocity.lengthSquared() > .004 ||
         hub.angularVelocity.lengthSquared() > .01;
     },
     get position() { return trolley.position; },
     dispose() {
+      if (phase === 'holding') wakeSleepingPrizes();
       for (const joint of constraints) world.removeConstraint(joint);
       for (const body of bodies) world.removeBody(body);
       constraints.clear();

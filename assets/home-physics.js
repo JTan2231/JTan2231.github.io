@@ -1,7 +1,7 @@
 import {
   Body, ContactMaterial, ConvexPolyhedron, Material, Plane, Quaternion, Sphere, Vec3, World
 } from './vendor/cannon-es.js';
-import { createClaw } from './home-claw.js';
+import { createClaw } from './home-claw.js?v=4';
 
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const subtract = (a, b) => a.map((value, axis) => value - b[axis]);
@@ -503,7 +503,7 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
       if (repeat || clawKeys.has(key)) return true;
       clawKeys.add(key);
       settling = true;
-      if (key === ' ') claw.start();
+      if (key === ' ') claw.toggleGrab();
       else pendingArrows.add(key);
       requestRender();
       return true;
