@@ -145,7 +145,6 @@ a:focus, button:focus { outline: none; }
 .screen-surface.is-rendered { border-radius: 0; background: transparent; overflow: visible; }
 .screen-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .screen-socials { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
-.screen-social-filters { position: absolute; }
 .screen-social {
   position: absolute;
   width: 24px;
@@ -154,27 +153,13 @@ a:focus, button:focus { outline: none; }
   transform: translate(-50%, -50%);
   pointer-events: auto;
 }
-.screen-social--github { left: 19%; top: 22%; --tile-color: #24292f; }
-.screen-social--linkedin { left: 81%; top: 76%; --tile-color: #28649f; }
+.screen-social--github { left: 19%; top: 22%; }
+.screen-social--linkedin { left: 81%; top: 76%; }
 .screen-social:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
-.screen-social-art {
+.screen-social img {
   position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  border-radius: inherit;
-  color: #f2f2f2;
-  background: var(--tile-color);
-  filter: url(#screen-social-wear);
+  inset: -2px;
   pointer-events: none;
-}
-.screen-social-art svg { width: 57%; fill: currentColor; }
-.screen-social-art::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: repeating-linear-gradient(#ffffff50 0, #ffffff00 1.6px, #22222238 2.6px, #ffffff50 3px);
 }
 .screen-shadow { display: none; }
 .screen-surface:not(.is-rendered) .screen-shadow {

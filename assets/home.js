@@ -22,6 +22,7 @@ import { createPhysicsScene } from './home-physics.js?v=4';
     { link: surface.querySelector('.screen-social--linkedin'), x: .81, y: .76, vx: -89, vy: -58 }
   ].filter(({ link }) => link);
   const effects = { curvature: .15, rolling: .85, period: 4.6, wear: .75, letterGrit: .65 };
+  const socialFrameInterval = 1000 / 24;
   const projects = new Map();
   const words = new WeakMap();
   const visitedViews = new WeakSet();
@@ -53,7 +54,7 @@ import { createPhysicsScene } from './home-physics.js?v=4';
   let frameId = 0;
   let nextFrame = 0;
   let lastTick = 0;
-  let lastSocialTick = 0;
+  let nextSocialFrame = 0;
   let elapsed = 0;
   let inView = false;
   let base = 1;
@@ -583,11 +584,16 @@ import { createPhysicsScene } from './home-physics.js?v=4';
     return phase <= span ? [inset + phase, velocity] : [inset + period - phase, -velocity];
   }
 
-  function updateSocialLinks(now) {
+  function updateSocialLinks(now, layoutChanged = false) {
     if (!screenWidth || !screenHeight) return;
-    const animated = !reducedMotion.matches;
-    const delta = animated && lastSocialTick ? Math.min((now - lastSocialTick) / 1000, .05) : 0;
-    lastSocialTick = animated ? now : 0;
+    const advance = !reducedMotion.matches && now + .1 >= nextSocialFrame;
+    if (!advance && !layoutChanged) return;
+    const delta = advance && nextSocialFrame ? socialFrameInterval / 1000 : 0;
+    if (advance) {
+      // Keep the 24 fps cadence even when frames fall between display refreshes.
+      const late = nextSocialFrame ? Math.max(0, now - nextSocialFrame) : 0;
+      nextSocialFrame = now + socialFrameInterval - late % socialFrameInterval;
+    }
     const rendered = surface.classList.contains('is-rendered');
     for (const logo of socialLinks) {
       const { link } = logo;
@@ -598,7 +604,8 @@ import { createPhysicsScene } from './home-physics.js?v=4';
       const x = logo.x * screenWidth;
       const y = logo.y * screenHeight;
       const point = rendered ? projectPoint(x, y) : { x, y };
-      link.style.transform = `translate3d(${point.x}px, ${point.y}px, 0) translate(-50%, -50%)`;
+      link.style.left = `${point.x}px`;
+      link.style.top = `${point.y}px`;
     }
   }
 
@@ -631,7 +638,6 @@ import { createPhysicsScene } from './home-physics.js?v=4';
     screenWidth = surface.clientWidth;
     screenHeight = surface.clientHeight;
     const logoRadius = (socialLinks[0]?.link.offsetWidth ?? 0) / 2;
-    for (const { link } of socialLinks) link.style.inset = '0 auto auto 0';
     // Keep the whole tile inside the glass, including at the rounded corners.
     const glassInset = rendered ? .12 : .08;
     socialInsetX = Math.min(.5, glassInset + logoRadius / screenWidth);
@@ -757,7 +763,7 @@ import { createPhysicsScene } from './home-physics.js?v=4';
   function stopEffects() {
     cancelAnimationFrame(frameId);
     frameId = 0;
-    nextFrame = lastTick = 0;
+    nextFrame = lastTick = nextSocialFrame = 0;
     site.dataset.effectsPaused = 'true';
   }
 
@@ -775,7 +781,6 @@ import { createPhysicsScene } from './home-physics.js?v=4';
     stopEffects();
     if (!inView || document.hidden) {
       physics?.stop();
-      lastSocialTick = 0;
     }
     syncVideo();
     site.dataset.effectsPaused = String(reducedMotion.matches || document.hidden || !inView);
@@ -791,7 +796,6 @@ import { createPhysicsScene } from './home-physics.js?v=4';
     if (document.hidden || !inView) return;
     const interval = 1000 / (renderer && !compact.matches ? 30 : 60);
     if (nextFrame && now + .1 < nextFrame) {
-      // Move the logos on display frames between CRT paints as well.
       updateSocialLinks(now);
       requestRender();
       return;
@@ -802,12 +806,13 @@ import { createPhysicsScene } from './home-physics.js?v=4';
     lastTick = now;
     updateTyping(now);
     updateTransition(now);
-    if (layoutDirty) {
+    const layoutChanged = layoutDirty;
+    if (layoutChanged) {
       layoutDirty = false;
       measureScene();
     }
     const rendered = !!renderer && !compact.matches;
-    updateSocialLinks(now);
+    updateSocialLinks(now, layoutChanged);
     if (decorationsDirty) {
       decorationsDirty = false;
       if (rendered) updateDecorations();
