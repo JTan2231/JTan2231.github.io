@@ -769,6 +769,7 @@ import { createPhysicsScene } from './home-physics.js';
     surface.style.setProperty('--video-amount', amount);
     const physicsOpacity = reducedMotion.matches && active ? 0 : 1 - amount;
     physics?.setVisible(physicsOpacity > 0);
+    physics?.setClawActive(!active);
     if (physics?.update(now) && rendered) renderer.uploadPhysics();
     if (rendered && screenWidth && screenHeight) {
       if (!renderer.paint(amount, physicsOpacity)) { useTextDisplay(); return; }
@@ -839,8 +840,22 @@ import { createPhysicsScene } from './home-physics.js';
 
   renderer = createRenderer();
   document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && active) { event.preventDefault(); close(); }
+    if (event.key === 'Escape' && active) {
+      event.preventDefault();
+      close();
+      return;
+    }
+    if (event.defaultPrevented || active || !inView || document.hidden || event.isComposing ||
+        event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const target = event.target;
+    if (target.closest?.('input, select, textarea, [contenteditable]')) return;
+    if (event.key === ' ' && target.closest?.('button, [role="button"]')) return;
+    if (physics?.handleClawKey(event.key, true, event.repeat)) event.preventDefault();
   });
+  window.addEventListener('keyup', event => {
+    if (physics?.handleClawKey(event.key, false)) event.preventDefault();
+  });
+  window.addEventListener('blur', () => physics?.clearClawKeys());
   new ResizeObserver(draw).observe(surface);
   new IntersectionObserver(entries => {
     inView = entries[0].isIntersecting;

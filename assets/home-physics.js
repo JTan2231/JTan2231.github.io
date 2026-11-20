@@ -97,10 +97,12 @@ function containsPoint(polygon, point) {
   return edges.every(edge => edge >= 0) || edges.every(edge => edge <= 0);
 }
 
-function bottomOffset(body) {
+function verticalExtent(body, direction = 1) {
   const rotate = rotation(body.angles);
-  return body.radius * Math.max(...body.mesh.vertices.map(vertex => rotate(vertex)[1]));
+  return body.radius * Math.max(...body.mesh.vertices.map(vertex => direction * rotate(vertex)[1]));
 }
+
+const clawArrows = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
 
 export function createPhysicsScene(canvas, input, { requestRender, project, unproject, reducedMotion }) {
   const ctx = canvas.getContext('2d');
@@ -135,14 +137,20 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
   let lastTime = 0;
   let drag = null;
   let faces = [];
+  const clawKeys = new Set();
+  const claw = { active: true, x: 0, y: 0, z: 0, size: 0, opening: 1, phase: 'idle', held: null };
 
   const scaleAt = z => focal / (focal + z);
+  const clawJaws = () => claw.size * 1.65;
+  const chainTop = () => -height * (.42 + .065 * claw.z / depth) / scaleAt(claw.z);
+  const clawHome = () => chainTop() + height * .13;
+  const isControlled = body => body === drag?.body || body === claw.held;
 
   function constrain(body, bounce) {
     const scale = scaleAt(body.position[2]);
     const wall = Math.max(0, (width / 2 - edge) / scale - body.radius);
     const ceiling = -Math.max(0, (height / 2 - edge) / scale - body.radius);
-    const bottom = floor - bottomOffset(body);
+    const bottom = floor - verticalExtent(body);
     const lower = [-wall, ceiling, -depth];
     const upper = [wall, bottom, depth];
     for (let axis = 0; axis < 3; axis++) {
@@ -162,19 +170,21 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
     if (!nextWidth || !nextHeight) return;
     if (width === nextWidth && height === nextHeight && curved === nextCurved) return;
     endDrag(false);
+    resetClaw();
+    const hadSize = width > 0;
     const shortSide = Math.min(nextWidth, nextHeight);
     const nextFocal = shortSide * 1.65;
-    const scales = [nextWidth / width, nextHeight / height, nextFocal / focal];
+    const scales = hadSize ? [nextWidth / width, nextHeight / height, nextFocal / focal] : null;
     floor = nextHeight * .35;
     gravity = shortSide * 2.2;
     for (const body of bodies) {
       body.radius = Math.min(78, shortSide * .111);
-      body.position = width
+      body.position = hadSize
         ? body.position.map((value, axis) => value * scales[axis])
         : body.start.map((value, axis) => value * [nextWidth, nextHeight, nextFocal][axis]);
-      if (body.grounded || (!width && reducedMotion.matches)) {
-        if (!width && body.flatBase) body.angles[0] = body.angles[2] = 0;
-        body.position[1] = floor - bottomOffset(body);
+      if (body.grounded || (!hadSize && reducedMotion.matches)) {
+        if (!hadSize && body.flatBase) body.angles[0] = body.angles[2] = 0;
+        body.position[1] = floor - verticalExtent(body);
       }
     }
     width = nextWidth;
@@ -185,6 +195,11 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
     depth = shortSide * .30;
     speedLimit = shortSide * 2.8;
     bodies.forEach(body => constrain(body, false));
+    claw.size = Math.min(39, shortSide * .064);
+    claw.x = hadSize ? claw.x * scales[0] : bodies[0].position[0];
+    claw.z = clamp(hadSize ? claw.z * scales[2] : bodies[0].position[2], -depth, depth);
+    constrainClaw();
+    claw.y = clawHome();
     const resolution = Math.min(1, 1280 / width, 900 / height);
     canvas.width = Math.max(1, Math.round(width * resolution));
     canvas.height = Math.max(1, Math.round(height * resolution));
@@ -197,9 +212,10 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
     const overlap = first.radius + second.radius - distance;
     if (overlap <= 0) return;
     const normal = distance ? offset.map(value => value / distance) : [1, 0, 0];
-    const firstWeight = Number(first !== drag?.body);
-    const secondWeight = Number(second !== drag?.body);
+    const firstWeight = Number(!isControlled(first));
+    const secondWeight = Number(!isControlled(second));
     const weight = firstWeight + secondWeight;
+    if (!weight) return;
     const relativeSpeed = dot(subtract(second.velocity, first.velocity), normal);
     const impulse = Math.max(0, -1.83 * relativeSpeed / weight);
     for (let axis = 0; axis < 3; axis++) {
@@ -211,9 +227,7 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
     }
   }
 
-  function step(now) {
-    const delta = lastTime ? clamp((now - lastTime) / 1000, 0, .05) : 1 / 60;
-    lastTime = now;
+  function stepBodies(now, delta) {
     if (drag && now - drag.updated > 90) drag.body.velocity.fill(0);
     const steps = Math.max(1, Math.ceil(delta * 120));
     const dt = delta / steps;
@@ -221,7 +235,7 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
     const floorDamping = Math.exp(-6 * dt);
     for (let index = 0; index < steps; index++) {
       for (const body of bodies) {
-        if (body === drag?.body) continue;
+        if (isControlled(body)) continue;
         body.velocity[1] += gravity * dt;
         for (let axis = 0; axis < 3; axis++) {
           body.position[axis] += body.velocity[axis] * dt;
@@ -235,6 +249,7 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
         for (let second = first + 1; second < bodies.length; second++) collide(bodies[first], bodies[second]);
       }
       for (const body of bodies) {
+        if (body === claw.held) continue;
         constrain(body, body !== drag?.body);
         if (body === drag?.body || !body.grounded || body.velocity[1] < 0) continue;
         body.velocity[0] *= floorDamping;
@@ -246,16 +261,15 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
             const angle = Math.atan2(Math.sin(body.angles[axis]), Math.cos(body.angles[axis]));
             body.angles[axis] = Math.abs(angle) < .008 ? 0 : angle * floorDamping;
           }
-          body.position[1] = floor - bottomOffset(body);
+          body.position[1] = floor - verticalExtent(body);
         }
       }
     }
     moving = bodies.some(body => needsFloor(body) ||
-      (body !== drag?.body && (length(body.velocity) > 2 || length(body.spin) > .025)));
+      (!isControlled(body) && (length(body.velocity) > 2 || length(body.spin) > .025)));
     if (!moving) {
-      lastTime = 0;
       for (const body of bodies) {
-        if (body !== drag?.body) {
+        if (!isControlled(body)) {
           body.velocity.fill(0);
           body.spin.fill(0);
         }
@@ -265,8 +279,142 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
   }
 
   function needsFloor(body) {
-    return body !== drag?.body && (!body.grounded ||
+    return !isControlled(body) && (!body.grounded ||
       (body.flatBase && (body.angles[0] !== 0 || body.angles[2] !== 0)));
+  }
+
+  function constrainClaw() {
+    const wall = Math.max(0, (width / 2 - edge) / scaleAt(claw.z) - claw.size * 1.3);
+    claw.x = clamp(claw.x, -wall, wall);
+  }
+
+  function releasePrize() {
+    const body = claw.held;
+    if (!body) return;
+    claw.held = null;
+    if (reducedMotion.matches) {
+      if (body.flatBase) body.angles[0] = body.angles[2] = 0;
+      body.position[1] = floor - verticalExtent(body);
+    }
+    constrain(body, false);
+  }
+
+  function resetClaw() {
+    clawKeys.clear();
+    releasePrize();
+    claw.y = width ? clawHome() : 0;
+    claw.opening = 1;
+    claw.phase = 'idle';
+    dirty = true;
+  }
+
+  function stepClaw(dt) {
+    if (claw.phase === 'idle') {
+      const dx = Number(clawKeys.has('ArrowRight')) - Number(clawKeys.has('ArrowLeft'));
+      const dz = Number(clawKeys.has('ArrowUp')) - Number(clawKeys.has('ArrowDown'));
+      const speed = Math.min(width, height) * .65 / (Math.hypot(dx, dz) || 1);
+      claw.x += dx * speed * dt;
+      claw.z = clamp(claw.z + dz * speed * dt, -depth, depth);
+      constrainClaw();
+      claw.y = clawHome();
+    } else if (claw.phase === 'descending') {
+      const bottom = floor - clawJaws();
+      let nextY = Math.min(bottom, claw.y + height * 1.05 * dt);
+      let prize = null;
+      for (const body of bodies) {
+        if (body === drag?.body) continue;
+        const [x, y, z] = body.position;
+        if (Math.hypot(claw.x - x, claw.z - z) > body.radius * .7 + claw.size * .42) continue;
+        const gripY = y - verticalExtent(body, -1) + claw.size * .52 - clawJaws();
+        if (gripY < claw.y - claw.size * .5 || gripY > nextY) continue;
+        nextY = gripY;
+        prize = body;
+      }
+      claw.y = Math.max(claw.y, nextY);
+      if (prize || nextY === bottom) {
+        claw.phase = 'closing';
+        claw.held = prize;
+        prize?.velocity.fill(0);
+        prize?.spin.fill(0);
+      }
+    } else if (claw.phase === 'closing') {
+      claw.opening = Math.max(0, claw.opening - dt * 6);
+      if (!claw.opening) claw.phase = 'rising';
+    } else if (claw.phase === 'rising') {
+      const nextY = Math.max(clawHome(), claw.y - height * .8 * dt);
+      if (claw.held) claw.held.position[1] += nextY - claw.y;
+      claw.y = nextY;
+      if (claw.y === clawHome()) claw.phase = 'opening';
+    } else if (claw.phase === 'opening') {
+      claw.opening = Math.min(1, claw.opening + dt * 4);
+      if (claw.opening >= .55) releasePrize();
+      if (claw.opening === 1) claw.phase = 'idle';
+    }
+    dirty = true;
+  }
+
+  function drawClaw() {
+    const scale = scaleAt(claw.z);
+    const unit = claw.size * scale;
+    const x = width / 2 + claw.x * scale;
+    const y = height / 2 + claw.y * scale;
+    const chain = (claw.y - chainTop()) / claw.size;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(unit, unit);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    for (let link = 0; .22 * link + .18 < chain; link++) {
+      const center = -chain + .18 + .22 * link;
+      const radius = link % 2 ? .046 : .105;
+      ctx.moveTo(radius, center);
+      ctx.ellipse(0, center, radius, .155, 0, 0, 2 * Math.PI);
+    }
+    ctx.strokeStyle = '#606c78';
+    ctx.lineWidth = .067;
+    ctx.stroke();
+    ctx.fillStyle = '#606c78';
+    ctx.fillRect(-.26, -chain - .07, .52, .14);
+    ctx.fillRect(-.088, -.31, .176, .38);
+
+    for (const side of [-1, 1]) {
+      const spread = claw.opening;
+      ctx.beginPath();
+      ctx.moveTo(side * .28, .38);
+      ctx.lineTo(side * (.68 + .44 * spread), .82);
+      ctx.lineTo(side * (.60 + .50 * spread), 1.27);
+      ctx.lineTo(side * (.28 + .56 * spread), 1.59);
+      ctx.lineWidth = .20;
+      ctx.strokeStyle = '#46515d';
+      ctx.stroke();
+      ctx.lineWidth = .095;
+      ctx.strokeStyle = '#a6b1bc';
+      ctx.stroke();
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(-.34, -.08);
+    ctx.lineTo(.34, -.08);
+    ctx.lineTo(.46, .35);
+    ctx.lineTo(.28, .55);
+    ctx.lineTo(-.28, .55);
+    ctx.lineTo(-.46, .35);
+    ctx.closePath();
+    const steel = ctx.createLinearGradient(-.4, 0, .4, .5);
+    steel.addColorStop(0, '#c5ced6');
+    steel.addColorStop(.56, '#8c99a6');
+    steel.addColorStop(1, '#667482');
+    ctx.fillStyle = steel;
+    ctx.fill();
+    ctx.lineWidth = .05;
+    ctx.strokeStyle = '#46515d';
+    ctx.stroke();
+    ctx.fillStyle = '#46515d';
+    ctx.beginPath();
+    ctx.arc(0, .25, .085, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.restore();
   }
 
   function render() {
@@ -284,7 +432,8 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
       const outline = silhouette(screen).map(([x, y]) => `${x - left}px ${y - top}px`);
       Object.assign(body.target.style, {
         left: `${left}px`, top: `${top}px`, width: `${right - left}px`, height: `${bottom - top}px`,
-        clipPath: `polygon(${outline.join(',')})`
+        clipPath: `polygon(${outline.join(',')})`,
+        visibility: body === claw.held ? 'hidden' : ''
       });
       for (const face of body.mesh.faces) {
         const [a, b, c] = face.map(index => world[index]);
@@ -303,7 +452,7 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
       const [x, y, z] = body.position;
       const scale = scaleAt(z);
       const size = body.radius * scale;
-      const gap = Math.max(0, floor - y - bottomOffset(body));
+      const gap = Math.max(0, floor - y - verticalExtent(body));
       const alpha = .16 * Math.exp(-gap / body.radius);
       ctx.save();
       ctx.translate(width / 2 + x * scale, height / 2 + floor * scale);
@@ -325,6 +474,7 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
       ctx.fill();
       ctx.stroke();
     }
+    if (claw.active) drawClaw();
     // Let objects pass behind the portfolio text while keeping the text legible.
     ctx.save();
     ctx.translate(width / 2, height / 2);
@@ -394,7 +544,7 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
     if (!visible || drag || event.button !== 0) return;
     const screen = pointer(event);
     const face = faces.findLast(face => containsPoint(face.screen, screen));
-    if (!face) return;
+    if (!face || face.body === claw.held) return;
     const { body } = face;
     const [x, y] = curved ? unproject(...screen) : screen;
     const scale = scaleAt(body.position[2]);
@@ -418,20 +568,47 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
     });
   }
 
-  function stop() {
-    endDrag(false);
+  function stopBodies() {
     for (const body of bodies) {
       body.velocity.fill(0);
       body.spin.fill(0);
     }
     moving = false;
+  }
+
+  function stop() {
+    endDrag(false);
+    resetClaw();
+    stopBodies();
     lastTime = 0;
   }
+
+  const clawMoving = () => claw.active && (claw.phase !== 'idle' || clawArrows.some(key => clawKeys.has(key)));
+  const bodiesMoving = () => !reducedMotion.matches && (moving || bodies.some(needsFloor));
 
   return {
     resize,
     stop,
-    get moving() { return visible && moving; },
+    get moving() { return visible && (clawMoving() || bodiesMoving()); },
+    setClawActive(value) {
+      if (claw.active === value) return;
+      claw.active = value;
+      resetClaw();
+    },
+    clearClawKeys() { clawKeys.clear(); },
+    handleClawKey(key, pressed, repeat = false) {
+      if (key !== ' ' && !clawArrows.includes(key)) return false;
+      if (!pressed) return clawKeys.delete(key);
+      if (!visible || !claw.active || !width) return false;
+      if (repeat || clawKeys.has(key)) return true;
+      clawKeys.add(key);
+      if (claw.phase === 'idle') {
+        if (key === ' ') claw.phase = 'descending';
+        else stepClaw(1 / 30);
+      }
+      requestRender();
+      return true;
+    },
     setVisible(value) {
       if (visible === value) return;
       visible = value;
@@ -439,8 +616,17 @@ export function createPhysicsScene(canvas, input, { requestRender, project, unpr
     },
     update(now) {
       if (!visible || !width) return false;
-      if (moving && reducedMotion.matches) stop();
-      if (!reducedMotion.matches && (moving || bodies.some(needsFloor))) step(now);
+      if (moving && reducedMotion.matches) {
+        endDrag(false);
+        stopBodies();
+      }
+      if (clawMoving() || bodiesMoving()) {
+        const delta = lastTime ? clamp((now - lastTime) / 1000, 0, .05) : 1 / 60;
+        lastTime = now;
+        if (clawMoving()) stepClaw(delta);
+        if (bodiesMoving()) stepBodies(now, delta);
+      }
+      if (!clawMoving() && !bodiesMoving()) lastTime = 0;
       if (!dirty) return false;
       render();
       dirty = false;
